@@ -171,7 +171,7 @@ impl GatewayTransactionRepository {
 
     /// Perform the `settled → refunded` transition (all-or-nothing reversal). Returns rows affected:
     /// the caller gates the `GatewayTransactionRefunded` emission on this being 1. Same CALLER'S-
-    /// connection contract as [`transition_to_settled`].
+    /// connection contract as [`Self::transition_to_settled`].
     pub async fn transition_to_refunded(
         &self,
         conn: &mut sqlx::PgConnection,

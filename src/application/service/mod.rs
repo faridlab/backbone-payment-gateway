@@ -21,7 +21,8 @@ pub use gateway_transaction_service::GatewayTransactionService;
 pub use payment_gateway_provider_service::PaymentGatewayProviderService;
 // <<< CUSTOM
 pub use gateway_events::{
-    GatewayEvent, GatewayEventSink, GatewayTransactionSettled, LoggingGatewaySink,
+    GatewayEvent, GatewayEventSink, GatewayTransactionRefunded, GatewayTransactionSettled,
+    LoggingGatewaySink,
 };
 pub use gateway_gl::{
     AccountingPostEnvelope, GlPostSink, GlPostAck, GlPostLine, GlPostRejected,

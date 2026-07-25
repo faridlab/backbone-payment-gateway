@@ -26,11 +26,12 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::infrastructure::persistence::{
-    compose_fee_post, FeeSourceRow, GatewayTransactionRepository,
+    compose_fee_post, compose_fee_reversal, FeeSourceRow, GatewayTransactionRepository,
 };
 
 use super::gateway_events::{
-    GatewayEvent, GatewayEventSink, GatewayTransactionSettled, LoggingGatewaySink,
+    GatewayEvent, GatewayEventSink, GatewayTransactionRefunded, GatewayTransactionSettled,
+    LoggingGatewaySink,
 };
 use super::gateway_gl::{AccountingPostEnvelope, GlPostSink, GlPostAck, GlPostRejected};
 
@@ -216,6 +217,69 @@ impl GatewayWriteService {
             currency: hdr.currency,
             settled_at: hdr.settled_at.unwrap_or_else(chrono::Utc::now),
             reference_no: hdr.reference_no,
+        }));
+
+        Ok(SettleOutcome { gateway_transaction_id, already_settled: false, fee_post: fee_ack })
+    }
+
+    /// Reverse (refund) a settled gateway transaction: post the fee REVERSAL journal (sign-flipped,
+    /// `posting_type = "reversal"`), transition `settled → refunded`, and emit
+    /// [`GatewayTransactionRefunded`] so the composition ACL reverses the PaymentEntry (via
+    /// `payment.reverse_payment`) + restores billing's invoice outstanding. All-or-nothing (the fee
+    /// reversal AND the event fire together). Idempotent: a repeat refund returns `already_settled: true`
+    /// and re-emits nothing.
+    pub async fn reverse_transaction(
+        &self,
+        gateway_transaction_id: Uuid,
+        fee_sink: &dyn GlPostSink,
+    ) -> Result<SettleOutcome, GatewayError> {
+        let src = self
+            .txns
+            .fetch_fee_source(&self.db_pool, gateway_transaction_id)
+            .await?
+            .ok_or(GatewayError::NotFound(gateway_transaction_id))?;
+        if src.status == "refunded" {
+            return Ok(SettleOutcome { gateway_transaction_id, already_settled: true, fee_post: None });
+        }
+        if src.status != "settled" {
+            return Err(GatewayError::UnsupportedCurrency(format!(
+                "cannot refund a transaction in status '{}'", src.status
+            )));
+        }
+        let company_id = src.company_id;
+        let fee_reversal_env = compose_fee_reversal(&src, chrono::Utc::now().date_naive());
+
+        let fee_ack = match fee_reversal_env.as_ref() {
+            Some(env) => match fee_sink.post(env).await {
+                Ok(ack) => Some(ack),
+                Err(GlPostRejected { code, message }) => {
+                    let _ = self.txns.mark_fee_failed(&self.db_pool, gateway_transaction_id).await;
+                    return Err(GatewayError::FeeSinkRejected { code, message });
+                }
+            },
+            None => None,
+        };
+
+        let mut tx = self.db_pool.begin().await?;
+        company_scope::bind_company_on(&mut tx, company_id).await?;
+        let rows = self.txns.transition_to_refunded(&mut tx, gateway_transaction_id).await?;
+        if rows == 0 {
+            tx.rollback().await?;
+            return Ok(SettleOutcome { gateway_transaction_id, already_settled: true, fee_post: fee_ack });
+        }
+        tx.commit().await?;
+
+        self.sink.publish(GatewayEvent::GatewayTransactionRefunded(GatewayTransactionRefunded {
+            gateway_transaction_id,
+            company_id: src.company_id,
+            provider_code: src.provider_code,
+            provider_transaction_id: src.provider_transaction_id,
+            payment_entry_id: src.payment_entry_id,
+            gross_amount: src.gross_amount,
+            fee_amount: src.fee_amount,
+            net_amount: src.net_amount,
+            currency: src.currency,
+            refunded_at: chrono::Utc::now(),
         }));
 
         Ok(SettleOutcome { gateway_transaction_id, already_settled: false, fee_post: fee_ack })

@@ -103,8 +103,9 @@ struct Recorder {
 }
 impl GatewayEventSink for Recorder {
     fn publish(&self, event: GatewayEvent) {
-        let GatewayEvent::GatewayTransactionSettled(s) = event;
-        self.events.lock().unwrap().push(s);
+        if let GatewayEvent::GatewayTransactionSettled(s) = event {
+            self.events.lock().unwrap().push(s);
+        }
     }
 }
 

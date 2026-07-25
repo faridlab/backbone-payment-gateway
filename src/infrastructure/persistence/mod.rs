@@ -26,6 +26,6 @@ pub use backbone_orm::repository::{
 // Re-export custom persistence types
 // <<< CUSTOM
 pub use gateway_transaction_repository_custom::{
-    compose_fee_post, FeeSourceRow, SettledHeaderRow,
+    compose_fee_post, compose_fee_reversal, FeeSourceRow, SettledHeaderRow,
 };
 // END CUSTOM

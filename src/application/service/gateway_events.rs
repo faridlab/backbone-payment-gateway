@@ -45,12 +45,32 @@ pub struct GatewayTransactionSettled {
     // NOTE: no `allocations[]` — reconciliation to invoices stays payment's job.
 }
 
-/// The gateway domain-event union. Reserved for `GatewayTransactionRefunded`
-/// (reversal wiring — deferred per ADR-003 Consequences).
+/// A gateway transaction was refunded. The gateway has ALREADY posted the fee reversal journal
+/// (sign-flipped, `reverses_post_id` = the original fee post). This event carries the
+/// `payment_entry_id` link so the composition ACL can reverse the PaymentEntry (via
+/// `payment.reverse_payment`) — which in turn emits `PaymentCancelled` → billing restores the
+/// invoice outstanding. The mirror of `GatewayTransactionSettled`.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct GatewayTransactionRefunded {
+    pub gateway_transaction_id: Uuid,
+    pub company_id: Uuid,
+    pub provider_code: String,
+    pub provider_transaction_id: String,
+    /// The PaymentEntry created on settle — the ACL reverses it. `None` if settle didn't create one.
+    pub payment_entry_id: Option<Uuid>,
+    pub gross_amount: Decimal,
+    pub fee_amount: Decimal,
+    pub net_amount: Decimal,
+    pub currency: String,
+    pub refunded_at: DateTime<Utc>,
+}
+
+/// The gateway domain-event union.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "type")]
 pub enum GatewayEvent {
     GatewayTransactionSettled(GatewayTransactionSettled),
+    GatewayTransactionRefunded(GatewayTransactionRefunded),
 }
 
 /// Sink for gateway domain events. Fire-and-forget; a real adapter wires a bus

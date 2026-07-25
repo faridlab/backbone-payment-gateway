@@ -37,6 +37,12 @@ pub struct FeeSourceRow {
     /// Lifecycle status ("pending"/"authorized"/"captured"/"settled"/"refunded"/"failed") — read so a
     /// redelivery of an already-terminal transaction short-circuits before re-posting the fee.
     pub status: String,
+    /// The original fee companion post id — the reversal's `reverses_post_id`. `None` if zero-fee.
+    pub fee_post_id: Option<Uuid>,
+    /// The PaymentEntry created on settle (set by the composition ACL). `None` if not yet linked.
+    pub payment_entry_id: Option<Uuid>,
+    /// Denormalized provider code — for the GatewayTransactionRefunded event.
+    pub provider_code: String,
 }
 
 /// The settled header the `GatewayTransactionSettled` emission reads.
@@ -70,6 +76,7 @@ impl GatewayTransactionRepository {
                 r#"SELECT gt.id, gt.company_id, gt.provider_transaction_id, gt.direction::text AS dir,
                           gt.party_type::text AS pt, gt.party_id, gt.gross_amount, gt.fee_amount,
                           gt.net_amount, gt.currency, gt.reference_no, gt.status::text AS st,
+                          gt.fee_post_id, gt.payment_entry_id, gt.provider_code::text AS pcode,
                           p.fee_account_id, p.settlement_account_id
                    FROM payment_gateway.gateway_transactions gt
                    JOIN payment_gateway.payment_gateway_providers p ON p.id = gt.provider_id
@@ -93,6 +100,9 @@ impl GatewayTransactionRepository {
             fee_account_id: r.get("fee_account_id"),
             settlement_account_id: r.get("settlement_account_id"),
             status: r.get("st"),
+            fee_post_id: r.get("fee_post_id"),
+            payment_entry_id: r.get("payment_entry_id"),
+            provider_code: r.get("pcode"),
         }))
     }
 
@@ -154,6 +164,27 @@ impl GatewayTransactionRepository {
         .bind(gateway_transaction_id)
         .bind(fee_post_id)
         .bind(posting_state)
+        .execute(conn)
+        .await?;
+        Ok(res.rows_affected())
+    }
+
+    /// Perform the `settled → refunded` transition (all-or-nothing reversal). Returns rows affected:
+    /// the caller gates the `GatewayTransactionRefunded` emission on this being 1. Same CALLER'S-
+    /// connection contract as [`transition_to_settled`].
+    pub async fn transition_to_refunded(
+        &self,
+        conn: &mut sqlx::PgConnection,
+        gateway_transaction_id: Uuid,
+    ) -> Result<u64, sqlx::Error> {
+        let res = sqlx::query(
+            r#"UPDATE payment_gateway.gateway_transactions
+                  SET status='refunded'::gateway_transaction_status
+                WHERE id=$1
+                  AND status='settled'::gateway_transaction_status
+                  AND (metadata->>'deleted_at') IS NULL"#,
+        )
+        .bind(gateway_transaction_id)
         .execute(conn)
         .await?;
         Ok(res.rows_affected())
@@ -233,6 +264,43 @@ pub fn compose_fee_post(
         posting_type: "original".into(),
         reverses_post_id: None,
         description: Some(format!("Gateway fee ({})", src.provider_transaction_id)),
+        lines,
+    })
+}
+
+/// The pure fee-REVERSAL post composer — the sign-flipped mirror of [`compose_fee_post`],
+/// `posting_type = "reversal"`, linked to the original via `reverses_post_id`. Returns `None` when
+/// there is nothing to reverse (zero fee, accounts not configured). `reverses_post_id` is `None` if
+/// the original settle posted no fee link — accounting creates a standalone reversal in that case.
+pub fn compose_fee_reversal(
+    src: &FeeSourceRow,
+    posting_date: NaiveDate,
+) -> Option<crate::application::service::gateway_gl::AccountingPostEnvelope> {
+    use crate::application::service::gateway_gl::{AccountingPostEnvelope, GlPostLine};
+    if src.fee_amount <= Decimal::ZERO {
+        return None;
+    }
+    let fee_account = src.fee_account_id?;
+    let bank_account = src.settlement_account_id?;
+    // Sign-flipped: the original was Dr Fee · Cr Bank; the reversal is Dr Bank · Cr Fee.
+    let lines = vec![
+        GlPostLine::debit(bank_account, src.fee_amount)
+            .with_description("Gateway fee reversal — bank restored"),
+        GlPostLine::credit(fee_account, src.fee_amount)
+            .with_description("Gateway fee reversal — expense reversed"),
+    ];
+    Some(AccountingPostEnvelope {
+        idempotency_key: format!("reversal:{}", src.gateway_transaction_id),
+        company_id: src.company_id,
+        branch_id: None,
+        source_type: "gateway_fee".into(),
+        source_id: src.gateway_transaction_id,
+        source_reference: Some(src.provider_transaction_id.clone()),
+        posting_date,
+        currency: src.currency.clone(),
+        posting_type: "reversal".into(),
+        reverses_post_id: src.fee_post_id,
+        description: Some(format!("Gateway fee reversal ({})", src.provider_transaction_id)),
         lines,
     })
 }

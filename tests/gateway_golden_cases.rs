@@ -6,7 +6,7 @@
 //! The DB-level exactly-once + end-to-end seam live in `gateway_webhook_probes.rs`
 //! and `gateway_seam.rs`.
 
-use backbone_payment_gateway::infrastructure::persistence::{compose_fee_post, FeeSourceRow};
+use backbone_payment_gateway::infrastructure::persistence::{compose_fee_post, compose_fee_reversal, FeeSourceRow};
 use backbone_payment_gateway::application::{GatewayWriteService};
 use rust_decimal::Decimal;
 use uuid::Uuid;
@@ -27,6 +27,9 @@ fn src(gross: i64, fee: i64, fee_acc: Option<Uuid>, bank_acc: Option<Uuid>) -> F
         fee_account_id: fee_acc,
         settlement_account_id: bank_acc,
         status: "pending".into(),
+        fee_post_id: None,
+        payment_entry_id: None,
+        provider_code: "midtrans".into(),
     }
 }
 
@@ -120,4 +123,43 @@ fn ggc5_fee_post_carries_party_for_subledger_traceability() {
     let (dr, cr) = env.totals();
     assert_eq!(dr, s.fee_amount);
     assert_eq!(cr, s.fee_amount);
+}
+
+#[test]
+fn ggc6_fee_reversal_sign_flips_and_links_original() {
+    let original_fee_post = Uuid::new_v4();
+    let fee_acc = Uuid::new_v4();
+    let bank_acc = Uuid::new_v4();
+    let s = FeeSourceRow {
+        gateway_transaction_id: Uuid::new_v4(),
+        company_id: Uuid::new_v4(),
+        provider_transaction_id: "MID-ORDER-REFUND".into(),
+        direction: "receive".into(),
+        party_type: Some("customer".into()),
+        party_id: Some(Uuid::new_v4()),
+        gross_amount: Decimal::from(1_000_000),
+        fee_amount: Decimal::from(30_000),
+        net_amount: Decimal::from(970_000),
+        currency: "IDR".into(),
+        reference_no: Some("BANK-REF-9".into()),
+        fee_account_id: Some(fee_acc),
+        settlement_account_id: Some(bank_acc),
+        status: "settled".into(),
+        fee_post_id: Some(original_fee_post),
+        payment_entry_id: Some(Uuid::new_v4()),
+        provider_code: "midtrans".into(),
+    };
+    let env = compose_fee_reversal(&s, chrono::Utc::now().date_naive())
+        .expect("non-zero fee + configured accounts must produce a reversal");
+    // Sign-flipped: the original was Dr Fee · Cr Bank; the reversal is Dr Bank · Cr Fee.
+    assert_eq!(env.lines.len(), 2);
+    assert_eq!(env.lines[0].account_id, bank_acc);
+    assert_eq!(env.lines[0].debit, Decimal::from(30_000));
+    assert_eq!(env.lines[1].account_id, fee_acc);
+    assert_eq!(env.lines[1].credit, Decimal::from(30_000));
+    assert!(env.is_balanced());
+    assert_eq!(env.posting_type, "reversal");
+    assert_eq!(env.reverses_post_id, Some(original_fee_post));
+    assert_eq!(env.source_type, "gateway_fee");
+    assert!(env.idempotency_key.starts_with("reversal:"));
 }

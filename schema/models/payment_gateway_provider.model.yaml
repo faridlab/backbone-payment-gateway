@@ -1,0 +1,86 @@
+# =============================================================================
+# Domain: PaymentGateway
+# Entity: PaymentGatewayProvider
+# Description: A configured payment-gateway provider for a company — the config
+# master. It maps a provider `code` (midtrans / xendit / doku / stripe / manual)
+# to the GL accounts the gateway posts against: `fee_account_id` is the Gateway
+# Fee Expense account debited for the fee, and `settlement_account_id` is the
+# Bank/Cash account net funds land in. Credentials are NEVER inline —
+# `credentials_ref` is an opaque pointer into the secret store. Concrete provider
+# SDKs (the actual Midtrans/Xendit HTTP clients) live at the composition layer,
+# NOT in this module (ADR-003 §2). All cross-module refs are logical FKs.
+# =============================================================================
+
+models:
+  - name: PaymentGatewayProvider
+    collection: payment_gateway_providers
+    description: "A configured payment-gateway provider for a company (config master)"
+
+    fields:
+      id:
+        type: uuid
+        attributes: ["@id", "@default(uuid)"]
+        description: "Unique provider-config id"
+
+      code:
+        type: GatewayProviderCode
+        attributes: ["@required"]
+        description: "Which gateway provider"
+
+      company_id:
+        type: uuid
+        attributes: ["@required", "@exclude_from_foreign_key_check"]
+        description: "Books owner # logical FK to organization.Company.id"
+
+      display_name:
+        type: string
+        attributes: ["@required", "@max(120)"]
+        description: "Human-readable label"
+
+      credentials_ref:
+        type: string?
+        attributes: ["@max(255)"]
+        description: "Opaque pointer to a secret-store entry — NEVER inline secrets"
+
+      fee_account_id:
+        type: uuid?
+        attributes: ["@exclude_from_foreign_key_check"]
+        description: "Gateway Fee Expense GL account # logical FK to accounting.Account.id"
+
+      settlement_account_id:
+        type: uuid?
+        attributes: ["@exclude_from_foreign_key_check"]
+        description: "Bank/Cash account net funds land in # logical FK to accounting.Account.id"
+
+      is_active:
+        type: bool
+        attributes: ["@default(true)"]
+        description: "Available for new charges"
+
+      metadata:
+        type: Metadata
+        attributes: ["@audit_metadata"]
+        description: "Audit metadata"
+
+    indexes:
+      - type: unique
+        fields: [company_id, code]
+        where: "deleted_at IS NULL"
+      - type: index
+        fields: [code, is_active]
+
+enums:
+  - name: GatewayProviderCode
+    description: "Which gateway provider"
+    variants:
+      - name: manual
+        description: "Operator keys reference_no by hand (legacy flow)"
+        default: true
+      - name: midtrans
+        description: "Midtrans"
+      - name: xendit
+        description: "Xendit"
+      - name: doku
+        description: "DOKU"
+      - name: stripe
+        description: "Stripe"

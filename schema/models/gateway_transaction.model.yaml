@@ -1,0 +1,176 @@
+# =============================================================================
+# Domain: PaymentGateway
+# Entity: GatewayTransaction
+# Description: A transaction observed at an external payment gateway. This is the
+# gateway's OWN record + state machine — distinct from payment.PaymentEntry
+# (which records the resulting settlement). On the `pending -> settled` transition
+# it emits ONE `GatewayTransactionSettled` seam event (→ ACL creates a
+# PaymentEntry at gross) and posts the gateway FEE companion journal
+# (`Dr Gateway Fee Expense · Cr Bank`) when `fee_amount > 0` (ADR-003 §3).
+# `(provider_code, provider_transaction_id)` is the natural webhook dedup key;
+# the transition-gated UPDATE (`rows_affected == 1`) makes a redelivered webhook
+# post exactly once (ADR-003 §5). All cross-module refs are logical FKs. Enums
+# are gateway-local (no schema-level edge into payment) per ADR-003 §6.
+# =============================================================================
+
+models:
+  - name: GatewayTransaction
+    collection: gateway_transactions
+    description: "A transaction observed at a payment gateway; settles into a PaymentEntry + fee post"
+
+    fields:
+      id:
+        type: uuid
+        attributes: ["@id", "@default(uuid)"]
+        description: "Unique gateway-transaction id"
+
+      company_id:
+        type: uuid
+        attributes: ["@required", "@exclude_from_foreign_key_check"]
+        description: "Books owner # logical FK to organization.Company.id — denormalized so the table carries its own FORCE RLS fence (ADR-003, mirroring payment ADR-0010)"
+
+      provider_id:
+        type: uuid
+        attributes: ["@required", "@foreign_key(PaymentGatewayProvider.id)"]
+        description: "Owning provider config"
+
+      provider_code:
+        type: GatewayProviderCode
+        attributes: ["@required"]
+        description: "Denormalized from PaymentGatewayProvider so webhook dedup + lookups need no join"
+
+      provider_transaction_id:
+        type: string
+        attributes: ["@required", "@max(140)", "@exclude_from_foreign_key_check"]
+        description: "The gateway's own transaction id — the dedup key (not a model FK)"
+
+      direction:
+        type: GatewayDirection
+        attributes: ["@default(receive)"]
+        description: "receive (customer pays us) | pay (we push out)"
+
+      party_type:
+        type: GatewayPartyType?
+        description: "Settled party kind (null for internal flows)"
+
+      party_id:
+        type: uuid?
+        attributes: ["@exclude_from_foreign_key_check"]
+        description: "Settled party # logical FK to party.Party.id (A/R or A/P subledger)"
+
+      gross_amount:
+        type: decimal
+        attributes: ["@required", "@precision(18,2)", "@non_negative"]
+        description: "Total money the customer was charged (the A/R credit / Bank debit on the PaymentEntry)"
+
+      fee_amount:
+        type: decimal
+        attributes: ["@default(0)", "@precision(18,2)", "@non_negative"]
+        description: "Gateway fee (Dr Gateway Fee Expense · Cr Bank companion post)"
+
+      net_amount:
+        type: decimal
+        attributes: ["@required", "@precision(18,2)", "@non_negative"]
+        description: "gross_amount − fee_amount (funds that actually land in the bank)"
+
+      currency:
+        type: string
+        attributes: ["@default(\"IDR\")", "@max(3)"]
+        description: "ISO currency code"
+
+      status:
+        type: GatewayTransactionStatus
+        attributes: ["@default(pending)"]
+        description: "Gateway transaction lifecycle"
+
+      posting_state:
+        type: GatewayPostingState
+        attributes: ["@default(pending)"]
+        description: "Fee-post reconciliation state"
+
+      payment_entry_id:
+        type: uuid?
+        attributes: ["@exclude_from_foreign_key_check"]
+        description: "Resulting settlement # logical FK to payment.PaymentEntry.id (set by the composition ACL)"
+
+      fee_post_id:
+        type: uuid?
+        attributes: ["@exclude_from_foreign_key_check"]
+        description: "The fee AccountingPost # logical FK to accounting.AccountingPost.id"
+
+      settled_at:
+        type: datetime?
+        description: "When the gateway confirmed settlement"
+
+      reference_no:
+        type: string?
+        attributes: ["@max(140)"]
+        description: "External bank / gateway reference"
+
+      raw_payload:
+        type: json?
+        description: "Verbatim provider callback payload (debug / audit) — stored as JSONB"
+
+      metadata:
+        type: Metadata
+        attributes: ["@audit_metadata"]
+        description: "Audit metadata"
+
+    indexes:
+      - type: unique
+        fields: [provider_code, provider_transaction_id]
+        where: "deleted_at IS NULL"
+        description: "THE dedup key — one GatewayTransaction per provider transaction"
+      - type: index
+        fields: [company_id, status]
+      - type: index
+        fields: [payment_entry_id]
+
+enums:
+  - name: GatewayDirection
+    description: "Direction of gateway money"
+    variants:
+      - name: receive
+        description: "Customer pays us via gateway"
+        default: true
+      - name: pay
+        description: "We push out via gateway (rare)"
+
+  - name: GatewayPartyType
+    description: "Subledger party a gateway transaction settles (mirrors payment.PaymentPartyType values; gateway-local to avoid a schema edge)"
+    variants:
+      - name: customer
+        description: "A/R party"
+        default: true
+      - name: supplier
+        description: "A/P party"
+      - name: employee
+        description: "Employee (advances/reimbursements)"
+
+  - name: GatewayTransactionStatus
+    description: "Gateway transaction lifecycle"
+    variants:
+      - name: pending
+        description: "Charge created, not yet captured/settled"
+        default: true
+      - name: authorized
+        description: "Authorized, awaiting capture"
+      - name: captured
+        description: "Captured, awaiting settlement"
+      - name: settled
+        description: "Settled to bank — PaymentEntry + fee post emitted"
+      - name: refunded
+        description: "Refunded (reversal wiring deferred — ADR-003 Consequences)"
+      - name: failed
+        description: "Rejected / failed at provider"
+
+  - name: GatewayPostingState
+    description: "Fee-post reconciliation state (mirrors payment.GlPostingState values; gateway-local)"
+    variants:
+      - name: pending
+        description: "Fee post not yet emitted"
+        default: true
+      - name: posted
+        description: "Fee post confirmed"
+      - name: failed
+        description: "Fee post rejected by accounting"

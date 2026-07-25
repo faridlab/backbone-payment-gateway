@@ -1,0 +1,38 @@
+# Codegen policy for payment-gateway.
+#
+# `user_owned` globs are hand-written files that live inside generator-owned trees but are
+# NOT schema-derived. `metaphor schema generate [--force]` skips them wholesale (never reads,
+# merges, or deletes them). Everything else in src/ is regenerated from schema/models.
+#
+# Re-exports/declarations that must sit alongside generated code live inside
+# `// <<< CUSTOM ... // END CUSTOM` markers (service/mod.rs, presentation/http/mod.rs, lib.rs)
+# and are preserved by the marker mechanism, not listed here.
+#
+# Add your hand-authored services, handlers, tests, and docs below as you write them.
+
+user_owned:
+  # Hand-authored behavior (services + their HTTP surface). Examples:
+  # - "src/application/service/onboarding_service.rs"
+  # - "src/presentation/http/guarded_routes.rs"
+
+  # Gateway seam + write path (ADR-003). Declared in service/mod.rs + http/mod.rs
+  # CUSTOM blocks; listed here so `schema generate --force` never clobbers them.
+  - "src/application/service/gateway_gl.rs"
+  - "src/application/service/gateway_events.rs"
+  - "src/application/service/gateway_provider.rs"
+  - "src/application/service/gateway_write_service.rs"
+  - "src/infrastructure/persistence/gateway_transaction_repository_custom.rs"
+  - "src/presentation/http/gateway_webhook_handler.rs"
+
+  # The seeder binary imports the crate by name; the generator mis-derives it as
+  # `backbone_payment` for multi-segment module names, so this is hand-owned.
+  - "src/bin/seeder.rs"
+
+  # Behavior tests (the golden cases / oracle) + BDD features.
+  - "tests/features/**"
+  - "tests/gateway_golden_cases.rs"
+  - "tests/gateway_webhook_probes.rs"
+  - "tests/gateway_seam.rs"
+
+  # Hand-authored module documentation.
+  - "docs/**"

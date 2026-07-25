@@ -38,6 +38,12 @@ use std::sync::Arc;
 use axum::Router;
 use sqlx::PgPool;
 
+// <<< CUSTOM
+use application::service::{
+    GatewayEventSink, GatewayWriteService, GlPostSink, LoggingGatewaySink,
+};
+use presentation::http::{create_gateway_webhook_routes, WebhookState};
+// END CUSTOM
 /// PaymentGateway module configuration
 ///
 /// Use the builder pattern to configure and register this module:
@@ -53,6 +59,14 @@ use sqlx::PgPool;
 pub struct PaymentGatewayModule {
     pub gateway_transaction_service: Arc<GatewayTransactionService>,
     pub payment_gateway_provider_service: Arc<PaymentGatewayProviderService>,
+    // <<< CUSTOM
+    /// The settlement engine (settle + reverse). Exposed so composition can mount
+    /// the webhook router or drive settlement directly.
+    pub write_service: Arc<GatewayWriteService>,
+    /// Composition-provided fee sink. `None` ⇒ `gateway_webhook_router()` returns
+    /// `None` (the webhook cannot post the fee companion journal without one).
+    pub fee_sink: Option<Arc<dyn GlPostSink>>,
+    // END CUSTOM
 }
 
 impl PaymentGatewayModule {
@@ -86,11 +100,30 @@ impl PaymentGatewayModule {
     pub fn routes(&self) -> Router {
         self.all_crud_routes()
     }
+
+    // <<< CUSTOM
+    /// Build the gateway webhook router (`POST /webhook/settle`), if a fee sink
+    /// was configured on the builder. Returns `None` when no fee sink was provided
+    /// — the webhook cannot post the fee companion journal without one. The
+    /// composition layer mounts this behind its own provider-specific signature
+    /// verification.
+    pub fn gateway_webhook_router(&self) -> Option<Router> {
+        let fee_sink = self.fee_sink.clone()?;
+        Some(create_gateway_webhook_routes(WebhookState {
+            write_service: self.write_service.clone(),
+            fee_sink,
+        }))
+    }
+    // END CUSTOM
 }
 
 /// Builder for PaymentGatewayModule
 pub struct PaymentGatewayModuleBuilder {
     db_pool: Option<PgPool>,
+    // <<< CUSTOM
+    fee_sink: Option<Arc<dyn GlPostSink>>,
+    event_sink: Option<Arc<dyn GatewayEventSink>>,
+    // END CUSTOM
 }
 
 impl PaymentGatewayModuleBuilder {
@@ -98,6 +131,10 @@ impl PaymentGatewayModuleBuilder {
     pub fn new() -> Self {
         Self {
             db_pool: None,
+            // <<< CUSTOM
+            fee_sink: None,
+            event_sink: None,
+            // END CUSTOM
         }
     }
 
@@ -108,6 +145,21 @@ impl PaymentGatewayModuleBuilder {
     }
 
     // <<< CUSTOM - custom builder methods
+    /// Provide the fee-post sink (composition's accounting client). Required for
+    /// [`PaymentGatewayModule::gateway_webhook_router`] to return `Some`; without
+    /// it the webhook cannot post the fee companion journal.
+    pub fn with_fee_sink(mut self, sink: Arc<dyn GlPostSink>) -> Self {
+        self.fee_sink = Some(sink);
+        self
+    }
+
+    /// Provide the settlement-event sink (e.g. an outbox-backed bus). Defaults to
+    /// [`LoggingGatewaySink`] (structured tracing) when not set — fine for tests
+    /// and single-process setups; composition wires a durable bus for production.
+    pub fn with_event_sink(mut self, sink: Arc<dyn GatewayEventSink>) -> Self {
+        self.event_sink = Some(sink);
+        self
+    }
     // END CUSTOM
 
     /// Build the module with configured dependencies
@@ -122,6 +174,15 @@ impl PaymentGatewayModuleBuilder {
         // PaymentGatewayProvider service
         let payment_gateway_provider_repository = Arc::new(PaymentGatewayProviderRepository::new(db_pool.clone()));
         let payment_gateway_provider_service = Arc::new(PaymentGatewayProviderService::with_repository(payment_gateway_provider_repository.clone()));
+        // <<< CUSTOM
+        // The settlement engine: defaults to a logging event sink when composition
+        // hasn't wired a durable bus. The fee sink is held separately so the webhook
+        // router is built iff composition provided one (gateway_webhook_router -> None otherwise).
+        let event_sink: Arc<dyn GatewayEventSink> =
+            self.event_sink.unwrap_or_else(|| Arc::new(LoggingGatewaySink));
+        let write_service = Arc::new(GatewayWriteService::with_sink(db_pool.clone(), event_sink));
+        let fee_sink = self.fee_sink;
+        // END CUSTOM
 
         // <<< CUSTOM
         // END CUSTOM
@@ -130,6 +191,8 @@ impl PaymentGatewayModuleBuilder {
             gateway_transaction_service,
             payment_gateway_provider_service,
             // <<< CUSTOM
+            write_service,
+            fee_sink,
             // END CUSTOM
         })
     }

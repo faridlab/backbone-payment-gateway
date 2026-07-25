@@ -1,8 +1,9 @@
 # ADR-001: backbone-payment-gateway — the external money boundary (provider abstraction, fee line, settlement seam)
 
 **Status**: Accepted — Applied 2026-07-24
+**Updated**: 2026-07-25 — §6 resolved (the shared GL-posting contract shipped as `backbone-gl-posting` v0.1.0 / framework v2.7.5; the gateway now uses the shared `AccountingPostEnvelope`/`GlPostSink`); the outbox `company_id` fence relocated from a payment backfill into `backbone-outbox` `multi_tenant` (framework v2.7.4).
 **Deciders**: Farid (owner), build session 2026-07-24
-**Related**: payment ADR-001 (settlement boundary), payment ADR-002 (settlement seam), the outbox `company_id` fence (payment commit b2cd8e3 / ADR-0011), `docs/erp/gl-posting-contract.md`
+**Related**: payment ADR-001 (settlement boundary), payment ADR-002 (settlement seam), the outbox `company_id` fence (`backbone-outbox` `multi_tenant`, framework v2.7.4 — was payment's ADR-0011 backfill), `backbone-gl-posting` (framework v2.7.5)
 
 ## Context
 
@@ -28,15 +29,15 @@
 
 5. **Webhook idempotency = dedup key + transition-gated emission.** The webhook handler resolves the `GatewayTransaction` by `(provider_code, provider_transaction_id)` — the natural dedup key payment ADR-002 §3 flagged as missing for `apply_settlement`. The `pending → settled` UPDATE uses `rows_affected == 1` to gate the emit, so a redelivered webhook posts the fee and emits the seam event exactly once. The gateway's own `status` transition is the durable record; crash-survival via a shared outbox is the composition layer's concern (the event sink is fire-and-forget in-process today, mirroring payment's current state).
 
-6. **Gateway posts its fee through a gateway-owned sink.** To avoid a normal Cargo edge into payment (where `GlPostSink` / `AccountingPostEnvelope` currently live), the gateway defines its own `GatewayFeePostEnvelope` + `GatewayFeeSink` trait — structurally identical to payment's, owned by gateway. The composition ACL implements `GatewayFeeSink` by forwarding to accounting, identical to how payment's `GlPostSink` is ACL-implemented in tests today. Promoting the posting-envelope / sink contract to a shared `backbone-*-contracts` crate is a deferred cleanup (Consequences), NOT part of this release. Gateway-owned enums (`GatewayPostingState`, `GatewayPartyType`, …) mirror payment's values locally for the same reason — no schema-level edge.
+6. **Gateway posts its fee through the shared GL-posting sink.** The fee companion journal is an `AccountingPostEnvelope` (`source_type = "gateway_fee"`) emitted through the shared `GlPostSink` port — now in `backbone-gl-posting` (framework v2.7.5), the single contract payment / selling / inventory / billing also use, so there is zero per-producer duplication and no Cargo edge into accounting. (Originally the gateway carried its own `GatewayFeePostEnvelope` / `GatewayFeeSink` copies to avoid that edge; phase 2 of the dedup replaced them with the shared types.) The composition ACL implements `GlPostSink` by forwarding to accounting, exactly as payment does. Gateway-owned enums (`GatewayPostingState`, `GatewayPartyType`, …) stay gateway-local for the same reason — no schema-level edge.
 
 ## Consequences
 
 - **Payment is untouched** — no regeneration, no schema change, no new Cargo edge. The fee gap closes purely additively, and payment's settlement post stays the single owner of the A/R / A-P clearing shape.
-- **Gateway is independently composable**: it needs only a Postgres pool, a `GatewayFeeSink`, and a `GatewayEventSink`. The provider SDKs register into a `PaymentGatewayRegistry` at the composition layer.
+- **Gateway is independently composable**: it needs only a Postgres pool, a `GlPostSink` (shared, `backbone-gl-posting`), and a `GatewayEventSink`. The provider SDKs register into a `PaymentGatewayRegistry` at the composition layer.
 - **Proven at the unit level** by `tests/gateway_golden_cases.rs` (the pure fee-post composer: gross/fee/net invariant, zero-fee skips the companion post, the envelope balances with `Dr Fee · Cr Bank`). The transition-gated exactly-once and the end-to-end seam (gateway settle → PaymentEntry + fee post → billing drawdown, all three journals balancing) are exercised by `tests/gateway_webhook_probes.rs` and `tests/gateway_seam.rs`, which require a live Postgres + `backbone-payment` as a dev-dependency (same shape as payment's `settlement_seam.rs`).
 - **Reversal interplay is deferred.** A gateway refund must reverse BOTH the PaymentEntry and the fee companion post. `GatewayTransactionRefunded` is parked (all-or-nothing, mirroring payment ADR-001 §5 reversal): the `GatewayTransaction` carries `status = refunded`, but the multi-post reversal wiring is a follow-up.
-- **Deferred:** the shared-contracts-crate promotion (§6), multi-currency net / FX on fees, partial refunds, gateway-side allocation hints, real provider SDKs, and the production event-bus ownership of the ACL.
+- **Deferred:** multi-currency net / FX on fees, partial refunds, gateway-side allocation hints, real provider SDKs, and the production event-bus ownership of the ACL. (The shared-contracts-crate promotion in §6 is **done** — `backbone-gl-posting` v0.1.0.)
 
 ## Parking lot (explicitly out of scope)
 

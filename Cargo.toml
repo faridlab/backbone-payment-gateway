@@ -71,6 +71,11 @@ auth = []
 grpc = []
 openapi = []
 validation = []
+# Opt-in: the outbound provider SDK abstraction (PaymentGatewayProvider trait,
+# registry, Manual/Stub adapters). Composition enables this to plug real
+# Midtrans/Xendit/DOKU/Stripe clients; CRUD-only consumers leave it off, so the
+# default build carries no unused provider code or the second (provider) error type.
+provider-sdk = []
 
 [build-dependencies]
 tonic-build = "0.12"

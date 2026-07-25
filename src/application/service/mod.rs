@@ -13,8 +13,9 @@ pub mod payment_gateway_provider_service;
 // <<< CUSTOM
 pub mod gateway_gl;
 pub mod gateway_events;
-pub mod gateway_provider;
 pub mod gateway_write_service;
+#[cfg(feature = "provider-sdk")]
+pub mod gateway_provider;
 // END CUSTOM
 
 pub use gateway_transaction_service::GatewayTransactionService;
@@ -27,6 +28,7 @@ pub use gateway_events::{
 pub use gateway_gl::{
     AccountingPostEnvelope, GlPostSink, GlPostAck, GlPostLine, GlPostRejected,
 };
+#[cfg(feature = "provider-sdk")]
 pub use gateway_provider::{
     ChargeCreated, CreateChargeRequest, GatewayError as ProviderError, GatewayTxStatus,
     ManualGatewayProvider, PaymentGatewayProvider, PaymentGatewayRegistry, RefundResult,

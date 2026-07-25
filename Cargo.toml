@@ -1,6 +1,6 @@
 [package]
 name = "backbone-payment-gateway"
-version = "0.1.4"
+version = "0.2.0"
 edition = "2021"
 description = "External payment-gateway boundary: provider abstraction, transaction record, fee line, settlement seam into payment"
 

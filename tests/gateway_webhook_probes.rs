@@ -195,3 +195,37 @@ async fn gwp3_rejected_fee_marks_failed_and_settles_nothing() {
     assert_eq!(status, "pending");
     assert_eq!(posting_state, "failed");
 }
+
+#[tokio::test]
+async fn gwp4_refund_of_pending_returns_invalid_status() {
+    // Council rec #2: refunding a non-settled transaction returns `invalid_status`
+    // (NOT the old `unsupported_currency`), posts no fee, emits no event, and
+    // leaves the row untouched. A pending row → status != "settled" → InvalidStatus
+    // BEFORE any fee post or transition.
+    let pool = pool().await;
+    let company = Uuid::new_v4();
+    let (_provider, txn) = seed_pending(&pool, company, d("1000000"), d("30000")).await;
+
+    let recorder = Arc::new(Recorder::default());
+    let svc = GatewayWriteService::with_sink(pool.clone(), recorder.clone() as Arc<dyn GatewayEventSink>);
+    let fee = OkFee {
+        post: Uuid::new_v4(),
+        journal: Uuid::new_v4(),
+        calls: Arc::new(std::sync::atomic::AtomicU64::new(0)),
+    };
+
+    let err = svc.reverse_transaction(txn, &fee).await.unwrap_err();
+    assert_eq!(err.code(), "invalid_status", "refund-of-pending must be invalid_status, not unsupported_currency");
+    // No fee posted, no event emitted.
+    assert_eq!(fee.calls.load(std::sync::atomic::Ordering::SeqCst), 0);
+    assert!(recorder.events.lock().unwrap().is_empty());
+
+    // The row is untouched — still pending.
+    let status: String =
+        sqlx::query_scalar("SELECT status::text FROM payment_gateway.gateway_transactions WHERE id=$1")
+            .bind(txn)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert_eq!(status, "pending");
+}

@@ -53,6 +53,12 @@ pub enum GatewayError {
     /// post cannot be emitted. Surfaced only when a non-zero fee is present.
     FeeAccountsMissing,
     UnsupportedCurrency(String),
+    /// A lifecycle transition was rejected (e.g. refunding a transaction that
+    /// isn't `settled`). Surfaces as code `invalid_status` — NOT a currency error.
+    InvalidStatus(String),
+    /// Money invariant violated (negative amount, or net ≠ gross − fee).
+    /// Surfaces as code `invalid_money` — NOT a currency error.
+    InvalidMoney(String),
     FeeSinkRejected { code: String, message: String },
     Db(sqlx::Error),
 }
@@ -63,6 +69,8 @@ impl GatewayError {
             GatewayError::NotFound(_) => "gateway_transaction_not_found".into(),
             GatewayError::FeeAccountsMissing => "fee_accounts_missing".into(),
             GatewayError::UnsupportedCurrency(_) => "unsupported_currency".into(),
+            GatewayError::InvalidStatus(_) => "invalid_status".into(),
+            GatewayError::InvalidMoney(_) => "invalid_money".into(),
             GatewayError::FeeSinkRejected { code, .. } => code.clone(),
             GatewayError::Db(_) => "internal_error".into(),
         }
@@ -242,7 +250,7 @@ impl GatewayWriteService {
             return Ok(SettleOutcome { gateway_transaction_id, already_settled: true, fee_post: None });
         }
         if src.status != "settled" {
-            return Err(GatewayError::UnsupportedCurrency(format!(
+            return Err(GatewayError::InvalidStatus(format!(
                 "cannot refund a transaction in status '{}'", src.status
             )));
         }
@@ -319,10 +327,10 @@ impl GatewayWriteService {
     /// The gross/fee/net invariant check shared with validation: net = gross − fee.
     pub fn check_money(gross: Decimal, fee: Decimal, net: Decimal) -> Result<(), GatewayError> {
         if gross < Decimal::ZERO || fee < Decimal::ZERO || net < Decimal::ZERO {
-            return Err(GatewayError::UnsupportedCurrency("negative amount".into()));
+            return Err(GatewayError::InvalidMoney("negative amount".into()));
         }
         if net != gross - fee {
-            return Err(GatewayError::UnsupportedCurrency(format!("net {net} != gross {gross} - fee {fee}")));
+            return Err(GatewayError::InvalidMoney(format!("net {net} != gross {gross} - fee {fee}")));
         }
         Ok(())
     }

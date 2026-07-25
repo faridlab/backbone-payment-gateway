@@ -135,6 +135,9 @@ async fn apply_settlement_acl(
             paid_amount: s.gross_amount,
             reference_no: Some(s.provider_transaction_id.clone()),
             allocations: vec![],
+            withholding_amount: rust_decimal::Decimal::ZERO,
+            withholding_account_id: None,
+            withholding_tax_type: "none".into(),
         })
         .await
         .expect("create PaymentEntry from gateway settle");

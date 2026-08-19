@@ -15,6 +15,10 @@ version: 2
 schema: payment_gateway
 description: "payment_gateway domain module — external payment-gateway boundary"
 
+# ADR-0014 company fence: every entity here (providers, gateway transactions) is
+# company-scoped and fenced strict. No exceptions.
+company_fence: strict
+
 config:
   database: postgresql
   soft_delete: true

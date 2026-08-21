@@ -10,20 +10,13 @@ pub mod payment_gateway_provider_dto;
 
 // Re-exports
 pub use gateway_transaction_dto::{
-    CreateGatewayTransactionDto,
-    UpdateGatewayTransactionDto,
-    PatchGatewayTransactionDto,
-    GatewayTransactionResponseDto,
-    GatewayTransactionListResponseDto,
-    GatewayTransactionSummaryDto,
+    CreateGatewayTransactionDto, GatewayTransactionListResponseDto, GatewayTransactionResponseDto,
+    GatewayTransactionSummaryDto, PatchGatewayTransactionDto, UpdateGatewayTransactionDto,
 };
 pub use payment_gateway_provider_dto::{
-    CreatePaymentGatewayProviderDto,
-    UpdatePaymentGatewayProviderDto,
-    PatchPaymentGatewayProviderDto,
-    PaymentGatewayProviderResponseDto,
-    PaymentGatewayProviderListResponseDto,
-    PaymentGatewayProviderSummaryDto,
+    CreatePaymentGatewayProviderDto, PatchPaymentGatewayProviderDto,
+    PaymentGatewayProviderListResponseDto, PaymentGatewayProviderResponseDto,
+    PaymentGatewayProviderSummaryDto, UpdatePaymentGatewayProviderDto,
 };
 
 // Common pagination types
@@ -49,8 +42,12 @@ pub struct PaginationParams {
     pub sort_order: Option<String>,
 }
 
-fn default_page() -> u32 { 1 }
-fn default_per_page() -> u32 { 20 }
+fn default_page() -> u32 {
+    1
+}
+fn default_per_page() -> u32 {
+    20
+}
 
 /// API response wrapper
 #[derive(Debug, Clone, Serialize)]
@@ -75,7 +72,11 @@ pub struct ApiError {
 
 impl<T> ApiResponse<T> {
     pub fn ok(data: T) -> Self {
-        Self { success: true, data: Some(data), error: None }
+        Self {
+            success: true,
+            data: Some(data),
+            error: None,
+        }
     }
 
     pub fn err(code: impl Into<String>, message: impl Into<String>) -> Self {

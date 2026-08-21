@@ -1,6 +1,6 @@
 [package]
 name = "backbone-payment-gateway"
-version = "0.2.2"
+version = "0.3.0"
 edition = "2021"
 description = "External payment-gateway boundary: provider abstraction, transaction record, fee line, settlement seam into payment"
 
@@ -35,6 +35,10 @@ chrono = { version = "0.4", features = ["serde"] }
 # Money/quantities — near-universal in domain modules. Generated code for any `decimal`
 # field imports rust_decimal, so ship it (and the matching sqlx feature) by default.
 rust_decimal = { version = "1.36", features = ["serde"] }
+
+# Webhook signature verification (DOKU raw-body HMAC under the `codecs` feature)
+hmac = "0.12"
+sha2 = "0.10"
 
 # Database (PostgreSQL primary)
 sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "postgres", "uuid", "chrono", "json", "migrate", "rust_decimal"] }
@@ -71,6 +75,12 @@ auth = []
 grpc = []
 openapi = []
 validation = []
+# Opt-in: provider notification codecs — parse + ADR-0021 verification contracts
+# (pure, I/O-free) and the verified ingest pipeline that settles from them. The
+# HTTP/re-fetch legs are composition ports (CredentialReader, StatusRefetch), so
+# this feature carries no SDKs and no HTTP clients.
+codecs = []
+
 # Opt-in: the outbound provider SDK abstraction (PaymentGatewayProvider trait,
 # registry, Manual/Stub adapters). Composition enables this to plug real
 # Midtrans/Xendit/DOKU/Stripe clients; CRUD-only consumers leave it off, so the
@@ -95,7 +105,7 @@ rand = "0.8"
 # Dev-only edge for the settlement seam test (gateway → payment). Mirrors payment's
 # own billing/accounting dev-deps for settlement_seam.rs — ADR-002 allows dev-only
 # edges for proving the seam; the shipped library has zero normal Cargo edges.
-backbone-payment = { git = "https://github.com/faridlab/backbone-payment", tag = "v0.6.0" }
+backbone-payment = { git = "https://github.com/faridlab/backbone-payment", tag = "v0.8.1" }
 
 # Dev-only override: use the local monorepo checkout of backbone-payment so edits
 # to it are picked up immediately when building/testing THIS crate. The git tag

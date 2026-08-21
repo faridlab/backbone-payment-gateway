@@ -23,7 +23,9 @@ pub struct GatewayTransactionRepository(
 
 impl std::ops::Deref for GatewayTransactionRepository {
     type Target = backbone_orm::GenericCrudRepository<GatewayTransaction, backbone_orm::SoftDelete>;
-    fn deref(&self) -> &Self::Target { &self.0 }
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 impl GatewayTransactionRepository {
@@ -33,4 +35,8 @@ impl GatewayTransactionRepository {
     }
 }
 
-backbone_core::impl_crud_repository!(GatewayTransactionRepository, GatewayTransaction, soft_delete);
+backbone_core::impl_crud_repository!(
+    GatewayTransactionRepository,
+    GatewayTransaction,
+    soft_delete
+);

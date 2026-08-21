@@ -73,9 +73,14 @@ pub struct RefundResult {
 /// registers them into a [`PaymentGatewayRegistry`].
 #[async_trait::async_trait]
 pub trait PaymentGatewayProvider: Send + Sync {
-    async fn create_charge(&self, req: &CreateChargeRequest) -> Result<ChargeCreated, GatewayError>;
+    async fn create_charge(&self, req: &CreateChargeRequest)
+        -> Result<ChargeCreated, GatewayError>;
     async fn get_status(&self, provider_tx_id: &str) -> Result<GatewayTxStatus, GatewayError>;
-    async fn refund(&self, provider_tx_id: &str, amount: Decimal) -> Result<RefundResult, GatewayError>;
+    async fn refund(
+        &self,
+        provider_tx_id: &str,
+        amount: Decimal,
+    ) -> Result<RefundResult, GatewayError>;
     /// Human label for tracing/diagnostics.
     fn name(&self) -> &'static str;
 }
@@ -90,10 +95,16 @@ pub struct PaymentGatewayRegistry {
 
 impl PaymentGatewayRegistry {
     pub fn new() -> Self {
-        Self { providers: Arc::new(HashMap::new()) }
+        Self {
+            providers: Arc::new(HashMap::new()),
+        }
     }
 
-    pub fn register(&mut self, code: GatewayProviderCode, provider: Arc<dyn PaymentGatewayProvider>) {
+    pub fn register(
+        &mut self,
+        code: GatewayProviderCode,
+        provider: Arc<dyn PaymentGatewayProvider>,
+    ) {
         Arc::make_mut(&mut self.providers).insert(code, provider);
     }
 
@@ -110,7 +121,10 @@ pub struct ManualGatewayProvider;
 
 #[async_trait::async_trait]
 impl PaymentGatewayProvider for ManualGatewayProvider {
-    async fn create_charge(&self, req: &CreateChargeRequest) -> Result<ChargeCreated, GatewayError> {
+    async fn create_charge(
+        &self,
+        req: &CreateChargeRequest,
+    ) -> Result<ChargeCreated, GatewayError> {
         Ok(ChargeCreated {
             // Synthesized, opaque — the operator later supplies the real reference.
             provider_transaction_id: format!("manual-{}", req.reference),
@@ -127,10 +141,16 @@ impl PaymentGatewayProvider for ManualGatewayProvider {
             settled_at: None,
         })
     }
-    async fn refund(&self, _provider_tx_id: &str, _amount: Decimal) -> Result<RefundResult, GatewayError> {
+    async fn refund(
+        &self,
+        _provider_tx_id: &str,
+        _amount: Decimal,
+    ) -> Result<RefundResult, GatewayError> {
         Err(GatewayError::NotImplemented)
     }
-    fn name(&self) -> &'static str { "manual" }
+    fn name(&self) -> &'static str {
+        "manual"
+    }
 }
 
 /// In-memory provider for tests. Stores created charges by id; `settle` lets a
@@ -142,7 +162,9 @@ pub struct StubGatewayProvider {
 
 impl StubGatewayProvider {
     pub fn new() -> Self {
-        Self { state: Mutex::new(HashMap::new()) }
+        Self {
+            state: Mutex::new(HashMap::new()),
+        }
     }
 
     /// Drive a created charge to settled in a test.
@@ -175,7 +197,10 @@ impl Default for StubGatewayProvider {
 
 #[async_trait::async_trait]
 impl PaymentGatewayProvider for StubGatewayProvider {
-    async fn create_charge(&self, req: &CreateChargeRequest) -> Result<ChargeCreated, GatewayError> {
+    async fn create_charge(
+        &self,
+        req: &CreateChargeRequest,
+    ) -> Result<ChargeCreated, GatewayError> {
         let id = format!("stub-{}", Uuid::new_v4());
         self.state.lock().unwrap().insert(
             id.clone(),
@@ -187,7 +212,11 @@ impl PaymentGatewayProvider for StubGatewayProvider {
                 settled_at: None,
             },
         );
-        Ok(ChargeCreated { provider_transaction_id: id, status: GatewayTransactionStatus::Pending, redirect_url: None })
+        Ok(ChargeCreated {
+            provider_transaction_id: id,
+            status: GatewayTransactionStatus::Pending,
+            redirect_url: None,
+        })
     }
     async fn get_status(&self, provider_tx_id: &str) -> Result<GatewayTxStatus, GatewayError> {
         self.state
@@ -197,12 +226,18 @@ impl PaymentGatewayProvider for StubGatewayProvider {
             .cloned()
             .ok_or_else(|| GatewayError::NotFound(provider_tx_id.to_string()))
     }
-    async fn refund(&self, provider_tx_id: &str, amount: Decimal) -> Result<RefundResult, GatewayError> {
+    async fn refund(
+        &self,
+        provider_tx_id: &str,
+        amount: Decimal,
+    ) -> Result<RefundResult, GatewayError> {
         Ok(RefundResult {
             provider_transaction_id: provider_tx_id.to_string(),
             refunded_amount: amount,
             status: GatewayTransactionStatus::Refunded,
         })
     }
-    fn name(&self) -> &'static str { "stub" }
+    fn name(&self) -> &'static str {
+        "stub"
+    }
 }

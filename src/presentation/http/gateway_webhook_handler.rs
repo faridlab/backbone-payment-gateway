@@ -21,7 +21,7 @@ use axum::routing::post;
 use axum::{Json, Router};
 use serde::{Deserialize, Serialize};
 
-use crate::application::service::{GlPostSink, GatewayWriteService};
+use crate::application::service::{GatewayWriteService, GlPostSink};
 
 /// A normalized provider notification. The composition adapter produces this from
 /// the raw provider payload after signature verification.
@@ -74,7 +74,11 @@ pub async fn settle_webhook(
     }
     match state
         .write_service
-        .settle_by_provider_tx(&notif.provider_code, &notif.provider_transaction_id, &*state.fee_sink)
+        .settle_by_provider_tx(
+            &notif.provider_code,
+            &notif.provider_transaction_id,
+            &*state.fee_sink,
+        )
         .await
     {
         Ok(outcome) => Ok((
@@ -87,7 +91,8 @@ pub async fn settle_webhook(
             }),
         )),
         Err(e) => {
-            let status = StatusCode::from_u16(e.http_status()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
+            let status =
+                StatusCode::from_u16(e.http_status()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
             Err((status, e.to_string()))
         }
     }
@@ -96,5 +101,7 @@ pub async fn settle_webhook(
 /// Compose the webhook router. The composition layer mounts this with its own
 /// fee-sink implementation and sits behind provider-specific verification.
 pub fn create_gateway_webhook_routes(state: WebhookState) -> Router {
-    Router::new().route("/webhook/settle", post(settle_webhook)).with_state(state)
+    Router::new()
+        .route("/webhook/settle", post(settle_webhook))
+        .with_state(state)
 }

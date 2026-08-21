@@ -5,11 +5,11 @@
 //! This trait defines the repository contract for the PaymentGatewayProvider aggregate.
 //! Implementation is in the infrastructure layer.
 
-use async_trait::async_trait;
 use anyhow::Result;
+use async_trait::async_trait;
 use uuid::Uuid;
 
-use crate::domain::entity::{PaymentGatewayProvider, GatewayProviderCode, ProviderStatus};
+use crate::domain::entity::{GatewayProviderCode, PaymentGatewayProvider, ProviderStatus};
 
 /// Pagination parameters for list queries
 #[derive(Debug, Clone, Default)]
@@ -56,7 +56,13 @@ pub struct PaymentGatewayProviderFilter {
 impl PaymentGatewayProviderFilter {
     /// Check if any filter is set
     pub fn has_filters(&self) -> bool {
-        self.code.is_some() || self.company_id.is_some() || self.display_name.is_some() || self.credentials_ref.is_some() || self.fee_account_id.is_some() || self.settlement_account_id.is_some() || self.status.is_some()
+        self.code.is_some()
+            || self.company_id.is_some()
+            || self.display_name.is_some()
+            || self.credentials_ref.is_some()
+            || self.fee_account_id.is_some()
+            || self.settlement_account_id.is_some()
+            || self.status.is_some()
     }
 }
 
@@ -66,7 +72,6 @@ impl PaymentGatewayProviderFilter {
 /// Implementations should be in the infrastructure layer.
 #[async_trait]
 pub trait PaymentGatewayProviderRepository: Send + Sync {
-
     // =========================================================================
     // Core CRUD Operations
     // =========================================================================
@@ -81,7 +86,11 @@ pub trait PaymentGatewayProviderRepository: Send + Sync {
     async fn find_all(&self) -> Result<Vec<PaymentGatewayProvider>>;
 
     /// Update payment_gateway_provider by ID
-    async fn update(&self, id: &str, entity: &PaymentGatewayProvider) -> Result<Option<PaymentGatewayProvider>>;
+    async fn update(
+        &self,
+        id: &str,
+        entity: &PaymentGatewayProvider,
+    ) -> Result<Option<PaymentGatewayProvider>>;
 
     /// Delete payment_gateway_provider by ID
     async fn delete(&self, id: &str) -> Result<bool>;
@@ -91,10 +100,17 @@ pub trait PaymentGatewayProviderRepository: Send + Sync {
     // =========================================================================
 
     /// List payment_gateway_provider with pagination
-    async fn list(&self, params: PaymentGatewayProviderPaginationParams) -> Result<PaymentGatewayProviderPaginatedResult>;
+    async fn list(
+        &self,
+        params: PaymentGatewayProviderPaginationParams,
+    ) -> Result<PaymentGatewayProviderPaginatedResult>;
 
     /// List payment_gateway_provider with pagination and filters
-    async fn list_with_filters(&self, params: PaymentGatewayProviderPaginationParams, filters: PaymentGatewayProviderFilter) -> Result<PaymentGatewayProviderPaginatedResult>;
+    async fn list_with_filters(
+        &self,
+        params: PaymentGatewayProviderPaginationParams,
+        filters: PaymentGatewayProviderFilter,
+    ) -> Result<PaymentGatewayProviderPaginatedResult>;
 
     /// Count all payment_gateway_provider entities
     async fn count(&self) -> Result<u64>;
@@ -116,7 +132,10 @@ pub trait PaymentGatewayProviderRepository: Send + Sync {
     async fn restore(&self, id: &str) -> Result<Option<PaymentGatewayProvider>>;
 
     /// List soft-deleted payment_gateway_provider entities
-    async fn list_deleted(&self, params: PaymentGatewayProviderPaginationParams) -> Result<PaymentGatewayProviderPaginatedResult>;
+    async fn list_deleted(
+        &self,
+        params: PaymentGatewayProviderPaginationParams,
+    ) -> Result<PaymentGatewayProviderPaginatedResult>;
 
     /// Empty trash (permanently delete all soft-deleted entities)
     async fn empty_trash(&self) -> Result<u64>;
@@ -126,7 +145,10 @@ pub trait PaymentGatewayProviderRepository: Send + Sync {
     // =========================================================================
 
     /// Bulk save payment_gateway_provider entities
-    async fn bulk_save(&self, entities: &[PaymentGatewayProvider]) -> Result<Vec<PaymentGatewayProvider>>;
+    async fn bulk_save(
+        &self,
+        entities: &[PaymentGatewayProvider],
+    ) -> Result<Vec<PaymentGatewayProvider>>;
 
     /// Bulk delete by IDs
     async fn bulk_delete(&self, ids: &[&str]) -> Result<u64>;

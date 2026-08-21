@@ -11,14 +11,14 @@
 //! use payment-gateway::exports::{GatewayTransactionDto};
 //! ```
 
-mod types;
-mod services;
 mod events;
+mod services;
+mod types;
 
 // Re-export all public types
-pub use types::*;
-pub use services::*;
 pub use events::*;
+pub use services::*;
+pub use types::*;
 
 // ============================================================================
 // EXPORT SUMMARY

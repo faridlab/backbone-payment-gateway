@@ -356,7 +356,7 @@ dependencies = [
 
 [[package]]
 name = "backbone-payment-gateway"
-version = "0.2.2"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -369,6 +369,7 @@ dependencies = [
  "backbone-payment",
  "chrono",
  "config",
+ "hmac",
  "jsonwebtoken",
  "mockall",
  "pretty_assertions",
@@ -380,6 +381,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml",
+ "sha2",
  "sqlx",
  "tempfile",
  "thiserror 1.0.69",

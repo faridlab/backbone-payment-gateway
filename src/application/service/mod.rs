@@ -11,23 +11,34 @@ pub mod gateway_transaction_service;
 pub mod payment_gateway_provider_service;
 
 // <<< CUSTOM
-pub mod gateway_gl;
+#[cfg(feature = "codecs")]
+pub mod gateway_codecs;
 pub mod gateway_events;
-pub mod gateway_write_service;
+pub mod gateway_gl;
+#[cfg(feature = "codecs")]
+pub mod gateway_ingest_service;
 #[cfg(feature = "provider-sdk")]
 pub mod gateway_provider;
+pub mod gateway_write_service;
 // END CUSTOM
 
 pub use gateway_transaction_service::GatewayTransactionService;
 pub use payment_gateway_provider_service::PaymentGatewayProviderService;
 // <<< CUSTOM
+#[cfg(feature = "codecs")]
+pub use gateway_codecs::{
+    CredentialFetch, CredentialReader, DokuCodec, GatewayCodecRegistry, GatewaySecret,
+    ManualNoopCodec, MidtransCodec, NormalizedNotification, NotificationCodec, NotificationEvent,
+    ParseError, ProviderTruth, RefetchError, StatusRefetch, VerificationScheme, VerifyError,
+    VerifyRequest, XenditCodec, PURPOSE_API_READ, PURPOSE_WEBHOOK_VERIFY,
+};
 pub use gateway_events::{
     GatewayEvent, GatewayEventSink, GatewayTransactionRefunded, GatewayTransactionSettled,
     LoggingGatewaySink,
 };
-pub use gateway_gl::{
-    AccountingPostEnvelope, GlPostSink, GlPostAck, GlPostLine, GlPostRejected,
-};
+pub use gateway_gl::{AccountingPostEnvelope, GlPostAck, GlPostLine, GlPostRejected, GlPostSink};
+#[cfg(feature = "codecs")]
+pub use gateway_ingest_service::{IngestError, IngestOutcome, WebhookIngestService, WebhookTarget};
 #[cfg(feature = "provider-sdk")]
 pub use gateway_provider::{
     ChargeCreated, CreateChargeRequest, GatewayError as ProviderError, GatewayTxStatus,

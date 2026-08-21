@@ -3,9 +3,9 @@ use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
 
+use super::AuditMetadata;
 use super::GatewayProviderCode;
 use super::ProviderStatus;
-use super::AuditMetadata;
 
 /// Strongly-typed ID for PaymentGatewayProvider
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -13,9 +13,15 @@ use super::AuditMetadata;
 pub struct PaymentGatewayProviderId(pub Uuid);
 
 impl PaymentGatewayProviderId {
-    pub fn new(id: Uuid) -> Self { Self(id) }
-    pub fn generate() -> Self { Self(Uuid::new_v4()) }
-    pub fn into_inner(self) -> Uuid { self.0 }
+    pub fn new(id: Uuid) -> Self {
+        Self(id)
+    }
+    pub fn generate() -> Self {
+        Self(Uuid::new_v4())
+    }
+    pub fn into_inner(self) -> Uuid {
+        self.0
+    }
 }
 
 impl std::fmt::Display for PaymentGatewayProviderId {
@@ -32,20 +38,28 @@ impl std::str::FromStr for PaymentGatewayProviderId {
 }
 
 impl From<Uuid> for PaymentGatewayProviderId {
-    fn from(id: Uuid) -> Self { Self(id) }
+    fn from(id: Uuid) -> Self {
+        Self(id)
+    }
 }
 
 impl From<PaymentGatewayProviderId> for Uuid {
-    fn from(id: PaymentGatewayProviderId) -> Self { id.0 }
+    fn from(id: PaymentGatewayProviderId) -> Self {
+        id.0
+    }
 }
 
 impl AsRef<Uuid> for PaymentGatewayProviderId {
-    fn as_ref(&self) -> &Uuid { &self.0 }
+    fn as_ref(&self) -> &Uuid {
+        &self.0
+    }
 }
 
 impl std::ops::Deref for PaymentGatewayProviderId {
     type Target = Uuid;
-    fn deref(&self) -> &Self::Target { &self.0 }
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
@@ -70,7 +84,12 @@ impl PaymentGatewayProvider {
     }
 
     /// Create a new PaymentGatewayProvider with required fields
-    pub fn new(code: GatewayProviderCode, company_id: Uuid, display_name: String, status: ProviderStatus) -> Self {
+    pub fn new(
+        code: GatewayProviderCode,
+        company_id: Uuid,
+        display_name: String,
+        status: ProviderStatus,
+    ) -> Self {
         Self {
             id: Uuid::new_v4(),
             code,
@@ -139,7 +158,6 @@ impl PaymentGatewayProvider {
         &self.status
     }
 
-
     // ==========================================================
     // Fluent Setters (with_* for optional fields)
     // ==========================================================
@@ -171,25 +189,39 @@ impl PaymentGatewayProvider {
         for (key, value) in fields {
             match key.as_str() {
                 "code" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.code = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.code = v;
+                    }
                 }
                 "company_id" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.company_id = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.company_id = v;
+                    }
                 }
                 "display_name" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.display_name = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.display_name = v;
+                    }
                 }
                 "credentials_ref" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.credentials_ref = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.credentials_ref = v;
+                    }
                 }
                 "fee_account_id" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.fee_account_id = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.fee_account_id = v;
+                    }
                 }
                 "settlement_account_id" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.settlement_account_id = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.settlement_account_id = v;
+                    }
                 }
                 "status" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.status = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.status = v;
+                    }
                 }
                 _ => {} // ignore unknown fields
             }
@@ -323,8 +355,12 @@ impl PaymentGatewayProviderBuilder {
     /// Returns Err if any required field without a default is missing.
     pub fn build(self) -> Result<PaymentGatewayProvider, String> {
         let code = self.code.ok_or_else(|| "code is required".to_string())?;
-        let company_id = self.company_id.ok_or_else(|| "company_id is required".to_string())?;
-        let display_name = self.display_name.ok_or_else(|| "display_name is required".to_string())?;
+        let company_id = self
+            .company_id
+            .ok_or_else(|| "company_id is required".to_string())?;
+        let display_name = self
+            .display_name
+            .ok_or_else(|| "display_name is required".to_string())?;
 
         Ok(PaymentGatewayProvider {
             id: Uuid::new_v4(),

@@ -18,9 +18,8 @@ pub use payment_gateway_provider_repository::PaymentGatewayProviderRepository;
 
 // Re-export backbone-orm types
 pub use backbone_orm::repository::{
-    DatabaseOperations, PostgresRepository,
-    PaginationParams, PaginationInfo, PaginatedResult,
-    FilterParams, FilterCondition, SortParams, SortDirection,
+    DatabaseOperations, FilterCondition, FilterParams, PaginatedResult, PaginationInfo,
+    PaginationParams, PostgresRepository, SortDirection, SortParams,
 };
 
 // Re-export custom persistence types

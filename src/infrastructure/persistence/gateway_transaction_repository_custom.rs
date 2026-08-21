@@ -230,6 +230,53 @@ impl GatewayTransactionRepository {
         .await?;
         Ok(())
     }
+
+    /// Stamp the verified notification payload onto the transaction — the
+    /// audit trail of exactly what bytes the verified settle acted on.
+    /// First-delivery-wins: a redelivery never overwrites the original. Only
+    /// the verified ingest path may call this (a raw payload is stored
+    /// POST-verification, never before).
+    pub async fn stamp_raw_payload(
+        &self,
+        pool: &PgPool,
+        gateway_transaction_id: Uuid,
+        raw_payload: serde_json::Value,
+    ) -> Result<u64, sqlx::Error> {
+        let res = company_scope::execute_scoped(
+            pool,
+            sqlx::query(
+                "UPDATE payment_gateway.gateway_transactions SET raw_payload=$2::jsonb \
+                 WHERE id=$1 AND raw_payload IS NULL",
+            )
+            .bind(gateway_transaction_id)
+            .bind(raw_payload),
+        )
+        .await?;
+        Ok(res.rows_affected())
+    }
+
+    /// Link the PaymentEntry the composition ACL created (stamp-back). CAS on
+    /// `payment_entry_id IS NULL` so a redelivered ACL drive can never
+    /// re-point the link; returns 1 when THIS call linked, 0 when a link
+    /// already existed.
+    pub async fn link_payment_entry(
+        &self,
+        pool: &PgPool,
+        gateway_transaction_id: Uuid,
+        payment_entry_id: Uuid,
+    ) -> Result<u64, sqlx::Error> {
+        let res = company_scope::execute_scoped(
+            pool,
+            sqlx::query(
+                "UPDATE payment_gateway.gateway_transactions SET payment_entry_id=$2 \
+                 WHERE id=$1 AND payment_entry_id IS NULL",
+            )
+            .bind(gateway_transaction_id)
+            .bind(payment_entry_id),
+        )
+        .await?;
+        Ok(res.rows_affected())
+    }
 }
 
 /// The pure fee-post composer (no DB) — factored out so the golden cases test it
@@ -247,8 +294,7 @@ pub fn compose_fee_post(
     let fee_account = src.fee_account_id?;
     let bank_account = src.settlement_account_id?;
     let lines = vec![
-        GlPostLine::debit(fee_account, src.fee_amount)
-            .with_description("Gateway fee expense"),
+        GlPostLine::debit(fee_account, src.fee_amount).with_description("Gateway fee expense"),
         GlPostLine::credit(bank_account, src.fee_amount)
             .with_description("Gateway fee settled to bank"),
     ];
@@ -300,7 +346,10 @@ pub fn compose_fee_reversal(
         currency: src.currency.clone(),
         posting_type: "reversal".into(),
         reverses_post_id: src.fee_post_id,
-        description: Some(format!("Gateway fee reversal ({})", src.provider_transaction_id)),
+        description: Some(format!(
+            "Gateway fee reversal ({})",
+            src.provider_transaction_id
+        )),
         lines,
     })
 }

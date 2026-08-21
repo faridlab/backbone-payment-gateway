@@ -5,10 +5,10 @@
 //! DTOs provide a clean separation between domain entities and API
 //! representations, with validation and OpenAPI documentation support.
 
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[cfg(feature = "openapi")]
 #[cfg(feature = "openapi")]
@@ -17,12 +17,12 @@ use utoipa::ToSchema;
 #[cfg(feature = "validation")]
 use validator::Validate;
 
-use crate::domain::entity::GatewayTransaction;
 use crate::domain::entity::AuditMetadata;
 use crate::domain::entity::GatewayDirection;
 use crate::domain::entity::GatewayPartyType;
 use crate::domain::entity::GatewayPostingState;
 use crate::domain::entity::GatewayProviderCode;
+use crate::domain::entity::GatewayTransaction;
 use crate::domain::entity::GatewayTransactionStatus;
 
 // =============================================================================
@@ -38,10 +38,16 @@ use crate::domain::entity::GatewayTransactionStatus;
 #[cfg_attr(feature = "validation", derive(Validate))]
 #[serde(rename_all = "camelCase")]
 pub struct CreateGatewayTransactionDto {
-    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[cfg_attr(
+        feature = "openapi",
+        schema(example = "550e8400-e29b-41d4-a716-446655440000")
+    )]
     #[serde(alias = "company_id")]
     pub company_id: Uuid,
-    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[cfg_attr(
+        feature = "openapi",
+        schema(example = "550e8400-e29b-41d4-a716-446655440000")
+    )]
     #[serde(alias = "provider_id")]
     pub provider_id: Uuid,
     #[serde(alias = "provider_code")]
@@ -67,16 +73,32 @@ pub struct CreateGatewayTransactionDto {
     pub status: GatewayTransactionStatus,
     #[serde(alias = "posting_state")]
     pub posting_state: GatewayPostingState,
-    #[serde(default, skip_serializing_if = "Option::is_none", alias = "payment_entry_id")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        alias = "payment_entry_id"
+    )]
     pub payment_entry_id: Option<Uuid>,
-    #[serde(default, skip_serializing_if = "Option::is_none", alias = "fee_post_id")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        alias = "fee_post_id"
+    )]
     pub fee_post_id: Option<Uuid>,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "settled_at")]
     pub settled_at: Option<DateTime<Utc>>,
     #[cfg_attr(feature = "validation", validate(length(max = 140)))]
-    #[serde(default, skip_serializing_if = "Option::is_none", alias = "reference_no")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        alias = "reference_no"
+    )]
     pub reference_no: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none", alias = "raw_payload")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        alias = "raw_payload"
+    )]
     pub raw_payload: Option<serde_json::Value>,
 }
 
@@ -93,10 +115,16 @@ pub struct CreateGatewayTransactionDto {
 #[cfg_attr(feature = "validation", derive(Validate))]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateGatewayTransactionDto {
-    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[cfg_attr(
+        feature = "openapi",
+        schema(example = "550e8400-e29b-41d4-a716-446655440000")
+    )]
     #[serde(alias = "company_id")]
     pub company_id: Uuid,
-    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[cfg_attr(
+        feature = "openapi",
+        schema(example = "550e8400-e29b-41d4-a716-446655440000")
+    )]
     #[serde(alias = "provider_id")]
     pub provider_id: Uuid,
     #[serde(alias = "provider_code")]
@@ -122,16 +150,32 @@ pub struct UpdateGatewayTransactionDto {
     pub status: GatewayTransactionStatus,
     #[serde(alias = "posting_state")]
     pub posting_state: GatewayPostingState,
-    #[serde(default, skip_serializing_if = "Option::is_none", alias = "payment_entry_id")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        alias = "payment_entry_id"
+    )]
     pub payment_entry_id: Option<Uuid>,
-    #[serde(default, skip_serializing_if = "Option::is_none", alias = "fee_post_id")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        alias = "fee_post_id"
+    )]
     pub fee_post_id: Option<Uuid>,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "settled_at")]
     pub settled_at: Option<DateTime<Utc>>,
     #[cfg_attr(feature = "validation", validate(length(max = 140)))]
-    #[serde(default, skip_serializing_if = "Option::is_none", alias = "reference_no")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        alias = "reference_no"
+    )]
     pub reference_no: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none", alias = "raw_payload")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        alias = "raw_payload"
+    )]
     pub raw_payload: Option<serde_json::Value>,
 }
 
@@ -148,17 +192,26 @@ pub struct UpdateGatewayTransactionDto {
 #[cfg_attr(feature = "validation", derive(Validate))]
 #[serde(rename_all = "camelCase")]
 pub struct PatchGatewayTransactionDto {
-    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[cfg_attr(
+        feature = "openapi",
+        schema(example = "550e8400-e29b-41d4-a716-446655440000")
+    )]
     #[serde(skip_serializing_if = "Option::is_none", alias = "company_id")]
     pub company_id: Option<Uuid>,
-    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[cfg_attr(
+        feature = "openapi",
+        schema(example = "550e8400-e29b-41d4-a716-446655440000")
+    )]
     #[serde(skip_serializing_if = "Option::is_none", alias = "provider_id")]
     pub provider_id: Option<Uuid>,
     #[serde(skip_serializing_if = "Option::is_none", alias = "provider_code")]
     pub provider_code: Option<GatewayProviderCode>,
     #[cfg_attr(feature = "validation", validate(length(max = 140)))]
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
-    #[serde(skip_serializing_if = "Option::is_none", alias = "provider_transaction_id")]
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        alias = "provider_transaction_id"
+    )]
     pub provider_transaction_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub direction: Option<GatewayDirection>,
@@ -196,7 +249,24 @@ pub struct PatchGatewayTransactionDto {
 impl PatchGatewayTransactionDto {
     /// Check if any field is set
     pub fn has_changes(&self) -> bool {
-        self.company_id.is_some() || self.provider_id.is_some() || self.provider_code.is_some() || self.provider_transaction_id.is_some() || self.direction.is_some() || self.party_type.is_some() || self.party_id.is_some() || self.gross_amount.is_some() || self.fee_amount.is_some() || self.net_amount.is_some() || self.currency.is_some() || self.status.is_some() || self.posting_state.is_some() || self.payment_entry_id.is_some() || self.fee_post_id.is_some() || self.settled_at.is_some() || self.reference_no.is_some() || self.raw_payload.is_some()
+        self.company_id.is_some()
+            || self.provider_id.is_some()
+            || self.provider_code.is_some()
+            || self.provider_transaction_id.is_some()
+            || self.direction.is_some()
+            || self.party_type.is_some()
+            || self.party_id.is_some()
+            || self.gross_amount.is_some()
+            || self.fee_amount.is_some()
+            || self.net_amount.is_some()
+            || self.currency.is_some()
+            || self.status.is_some()
+            || self.posting_state.is_some()
+            || self.payment_entry_id.is_some()
+            || self.fee_post_id.is_some()
+            || self.settled_at.is_some()
+            || self.reference_no.is_some()
+            || self.raw_payload.is_some()
     }
 }
 
@@ -212,11 +282,20 @@ impl PatchGatewayTransactionDto {
 #[cfg_attr(feature = "openapi", derive(ToSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct GatewayTransactionResponseDto {
-    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[cfg_attr(
+        feature = "openapi",
+        schema(example = "550e8400-e29b-41d4-a716-446655440000")
+    )]
     pub id: Uuid,
-    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[cfg_attr(
+        feature = "openapi",
+        schema(example = "550e8400-e29b-41d4-a716-446655440000")
+    )]
     pub company_id: Uuid,
-    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[cfg_attr(
+        feature = "openapi",
+        schema(example = "550e8400-e29b-41d4-a716-446655440000")
+    )]
     pub provider_id: Uuid,
     pub provider_code: GatewayProviderCode,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
@@ -269,7 +348,12 @@ pub struct GatewayTransactionListResponseDto {
 
 impl GatewayTransactionListResponseDto {
     /// Create a new list response from items and pagination info
-    pub fn new(items: Vec<GatewayTransactionResponseDto>, total: u64, page: u32, per_page: u32) -> Self {
+    pub fn new(
+        items: Vec<GatewayTransactionResponseDto>,
+        total: u64,
+        page: u32,
+        per_page: u32,
+    ) -> Self {
         let total_pages = if per_page > 0 {
             ((total as f64) / (per_page as f64)).ceil() as u32
         } else {
@@ -404,7 +488,10 @@ impl backbone_core::FromCreateDto<CreateGatewayTransactionDto> for GatewayTransa
 }
 
 impl backbone_core::ApplyUpdateDto<UpdateGatewayTransactionDto> for GatewayTransaction {
-    fn apply_update(mut self, dto: UpdateGatewayTransactionDto) -> backbone_core::ServiceResult<Self> {
+    fn apply_update(
+        mut self,
+        dto: UpdateGatewayTransactionDto,
+    ) -> backbone_core::ServiceResult<Self> {
         self.company_id = dto.company_id;
         self.provider_id = dto.provider_id;
         self.provider_code = dto.provider_code;

@@ -5,20 +5,15 @@
 //! DDD Repository traits - define persistence contracts for aggregates.
 //! Implementations should be in the infrastructure layer.
 
-
 pub mod gateway_transaction_repository;
 pub mod payment_gateway_provider_repository;
 
 // Re-exports
 pub use gateway_transaction_repository::{
-    GatewayTransactionRepository,
-    GatewayTransactionPaginationParams,
-    GatewayTransactionPaginatedResult,
-    GatewayTransactionFilter,
+    GatewayTransactionFilter, GatewayTransactionPaginatedResult,
+    GatewayTransactionPaginationParams, GatewayTransactionRepository,
 };
 pub use payment_gateway_provider_repository::{
-    PaymentGatewayProviderRepository,
-    PaymentGatewayProviderPaginationParams,
-    PaymentGatewayProviderPaginatedResult,
-    PaymentGatewayProviderFilter,
+    PaymentGatewayProviderFilter, PaymentGatewayProviderPaginatedResult,
+    PaymentGatewayProviderPaginationParams, PaymentGatewayProviderRepository,
 };

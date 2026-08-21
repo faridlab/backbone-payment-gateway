@@ -33,7 +33,7 @@ use super::gateway_events::{
     GatewayEvent, GatewayEventSink, GatewayTransactionRefunded, GatewayTransactionSettled,
     LoggingGatewaySink,
 };
-use super::gateway_gl::{AccountingPostEnvelope, GlPostSink, GlPostAck, GlPostRejected};
+use super::gateway_gl::{AccountingPostEnvelope, GlPostAck, GlPostRejected, GlPostSink};
 
 /// The outcome of settling a gateway transaction.
 #[derive(Debug, Clone)]
@@ -59,7 +59,10 @@ pub enum GatewayError {
     /// Money invariant violated (negative amount, or net ≠ gross − fee).
     /// Surfaces as code `invalid_money` — NOT a currency error.
     InvalidMoney(String),
-    FeeSinkRejected { code: String, message: String },
+    FeeSinkRejected {
+        code: String,
+        message: String,
+    },
     Db(sqlx::Error),
 }
 
@@ -93,7 +96,9 @@ impl std::fmt::Display for GatewayError {
 }
 impl std::error::Error for GatewayError {}
 impl From<sqlx::Error> for GatewayError {
-    fn from(e: sqlx::Error) -> Self { GatewayError::Db(e) }
+    fn from(e: sqlx::Error) -> Self {
+        GatewayError::Db(e)
+    }
 }
 
 /// The write service. The fee sink is passed per-call (mirrors payment's
@@ -180,7 +185,10 @@ impl GatewayWriteService {
             Some(env) => match fee_sink.post(env).await {
                 Ok(ack) => Some(ack),
                 Err(GlPostRejected { code, message }) => {
-                    let _ = self.txns.mark_fee_failed(&self.db_pool, gateway_transaction_id).await;
+                    let _ = self
+                        .txns
+                        .mark_fee_failed(&self.db_pool, gateway_transaction_id)
+                        .await;
                     return Err(GatewayError::FeeSinkRejected { code, message });
                 }
             },
@@ -192,7 +200,11 @@ impl GatewayWriteService {
         // performed the transition (rows_affected == 1).
         let mut tx = self.db_pool.begin().await?;
         company_scope::bind_company_on(&mut tx, company_id).await?;
-        let posting_state = if fee_ack.is_some() { "posted" } else { "pending" };
+        let posting_state = if fee_ack.is_some() {
+            "posted"
+        } else {
+            "pending"
+        };
         let rows = self
             .txns
             .transition_to_settled(
@@ -205,29 +217,42 @@ impl GatewayWriteService {
         if rows == 0 {
             // Already settled (or terminal) — nothing to emit. Idempotent re-entry.
             tx.rollback().await?;
-            return Ok(SettleOutcome { gateway_transaction_id, already_settled: true, fee_post: fee_ack });
+            return Ok(SettleOutcome {
+                gateway_transaction_id,
+                already_settled: true,
+                fee_post: fee_ack,
+            });
         }
-        let hdr = self.txns.fetch_settled_header_on(&mut tx, gateway_transaction_id).await?;
+        let hdr = self
+            .txns
+            .fetch_settled_header_on(&mut tx, gateway_transaction_id)
+            .await?;
         tx.commit().await?;
 
         // Only the winner of the transition publishes — exactly-once across the seam.
-        self.sink.publish(GatewayEvent::GatewayTransactionSettled(GatewayTransactionSettled {
-            gateway_transaction_id,
-            company_id: hdr.company_id,
-            provider_code: hdr.provider_code,
-            provider_transaction_id: hdr.provider_transaction_id,
-            direction: hdr.direction,
-            party_type: hdr.party_type,
-            party_id: hdr.party_id,
-            gross_amount: hdr.gross_amount,
-            fee_amount: hdr.fee_amount,
-            net_amount: hdr.net_amount,
-            currency: hdr.currency,
-            settled_at: hdr.settled_at.unwrap_or_else(chrono::Utc::now),
-            reference_no: hdr.reference_no,
-        }));
+        self.sink.publish(GatewayEvent::GatewayTransactionSettled(
+            GatewayTransactionSettled {
+                gateway_transaction_id,
+                company_id: hdr.company_id,
+                provider_code: hdr.provider_code,
+                provider_transaction_id: hdr.provider_transaction_id,
+                direction: hdr.direction,
+                party_type: hdr.party_type,
+                party_id: hdr.party_id,
+                gross_amount: hdr.gross_amount,
+                fee_amount: hdr.fee_amount,
+                net_amount: hdr.net_amount,
+                currency: hdr.currency,
+                settled_at: hdr.settled_at.unwrap_or_else(chrono::Utc::now),
+                reference_no: hdr.reference_no,
+            },
+        ));
 
-        Ok(SettleOutcome { gateway_transaction_id, already_settled: false, fee_post: fee_ack })
+        Ok(SettleOutcome {
+            gateway_transaction_id,
+            already_settled: false,
+            fee_post: fee_ack,
+        })
     }
 
     /// Reverse (refund) a settled gateway transaction: post the fee REVERSAL journal (sign-flipped,
@@ -247,11 +272,16 @@ impl GatewayWriteService {
             .await?
             .ok_or(GatewayError::NotFound(gateway_transaction_id))?;
         if src.status == "refunded" {
-            return Ok(SettleOutcome { gateway_transaction_id, already_settled: true, fee_post: None });
+            return Ok(SettleOutcome {
+                gateway_transaction_id,
+                already_settled: true,
+                fee_post: None,
+            });
         }
         if src.status != "settled" {
             return Err(GatewayError::InvalidStatus(format!(
-                "cannot refund a transaction in status '{}'", src.status
+                "cannot refund a transaction in status '{}'",
+                src.status
             )));
         }
         let company_id = src.company_id;
@@ -261,7 +291,10 @@ impl GatewayWriteService {
             Some(env) => match fee_sink.post(env).await {
                 Ok(ack) => Some(ack),
                 Err(GlPostRejected { code, message }) => {
-                    let _ = self.txns.mark_fee_failed(&self.db_pool, gateway_transaction_id).await;
+                    let _ = self
+                        .txns
+                        .mark_fee_failed(&self.db_pool, gateway_transaction_id)
+                        .await;
                     return Err(GatewayError::FeeSinkRejected { code, message });
                 }
             },
@@ -270,32 +303,48 @@ impl GatewayWriteService {
 
         let mut tx = self.db_pool.begin().await?;
         company_scope::bind_company_on(&mut tx, company_id).await?;
-        let rows = self.txns.transition_to_refunded(&mut tx, gateway_transaction_id).await?;
+        let rows = self
+            .txns
+            .transition_to_refunded(&mut tx, gateway_transaction_id)
+            .await?;
         if rows == 0 {
             tx.rollback().await?;
-            return Ok(SettleOutcome { gateway_transaction_id, already_settled: true, fee_post: fee_ack });
+            return Ok(SettleOutcome {
+                gateway_transaction_id,
+                already_settled: true,
+                fee_post: fee_ack,
+            });
         }
         tx.commit().await?;
 
-        self.sink.publish(GatewayEvent::GatewayTransactionRefunded(GatewayTransactionRefunded {
-            gateway_transaction_id,
-            company_id: src.company_id,
-            provider_code: src.provider_code,
-            provider_transaction_id: src.provider_transaction_id,
-            payment_entry_id: src.payment_entry_id,
-            gross_amount: src.gross_amount,
-            fee_amount: src.fee_amount,
-            net_amount: src.net_amount,
-            currency: src.currency,
-            refunded_at: chrono::Utc::now(),
-        }));
+        self.sink.publish(GatewayEvent::GatewayTransactionRefunded(
+            GatewayTransactionRefunded {
+                gateway_transaction_id,
+                company_id: src.company_id,
+                provider_code: src.provider_code,
+                provider_transaction_id: src.provider_transaction_id,
+                payment_entry_id: src.payment_entry_id,
+                gross_amount: src.gross_amount,
+                fee_amount: src.fee_amount,
+                net_amount: src.net_amount,
+                currency: src.currency,
+                refunded_at: chrono::Utc::now(),
+            },
+        ));
 
-        Ok(SettleOutcome { gateway_transaction_id, already_settled: false, fee_post: fee_ack })
+        Ok(SettleOutcome {
+            gateway_transaction_id,
+            already_settled: false,
+            fee_post: fee_ack,
+        })
     }
 
     /// Convenience access to the pure composer for callers/tests that already hold
     /// a [`FeeSourceRow`].
-    pub fn compose_fee(src: &FeeSourceRow, posting_date: chrono::NaiveDate) -> Option<AccountingPostEnvelope> {
+    pub fn compose_fee(
+        src: &FeeSourceRow,
+        posting_date: chrono::NaiveDate,
+    ) -> Option<AccountingPostEnvelope> {
         compose_fee_post(src, posting_date)
     }
 
@@ -319,6 +368,95 @@ impl GatewayWriteService {
         self.settle_transaction(id, fee_sink).await
     }
 
+    /// The VERIFIED webhook settle — [`Self::settle_by_provider_tx`] with the
+    /// ADR-0022 money gate enforced against the AUTHORITY's numbers (the
+    /// verified body for raw-body-HMAC providers, the re-fetched status
+    /// otherwise) and the verified payload stamped for audit. Called only from
+    /// [`WebhookIngestService`](super::gateway_ingest_service::WebhookIngestService),
+    /// after verification has passed.
+    ///
+    /// Gate order matters: the money checks run BEFORE any write (a stamp or a
+    /// transition), so a mismatched authority leaves the row byte-identical.
+    /// The authority's fee gates the invariant; when it is absent (Midtrans
+    /// status API) the recorded row's fee stands. What BOOKS is the recorded
+    /// row's fee (the fee post and the settled event both carry it) — a
+    /// reported authority fee that diverges from the estimate warns loudly
+    /// and the divergence is reconciled against the provider statement; the
+    /// row is never silently re-priced.
+    pub async fn settle_by_provider_tx_verified(
+        &self,
+        company_id: Uuid,
+        provider_code: &str,
+        provider_transaction_id: &str,
+        authority_gross: Decimal,
+        authority_fee: Option<Decimal>,
+        raw_payload: Option<serde_json::Value>,
+        fee_sink: &dyn GlPostSink,
+    ) -> Result<SettleOutcome, GatewayError> {
+        company_scope::with_company_scope(Some(company_id), async {
+            let id = self
+                .txns
+                .find_id_by_provider_tx(&self.db_pool, provider_code, provider_transaction_id)
+                .await?
+                .ok_or_else(|| GatewayError::NotFound(Uuid::nil()))?;
+            let src = self
+                .txns
+                .fetch_fee_source(&self.db_pool, id)
+                .await?
+                .ok_or(GatewayError::NotFound(id))?;
+
+            // Money gate: valid on the authority's numbers, and the authority
+            // must agree with what was recorded for this transaction.
+            let fee = authority_fee.unwrap_or(src.fee_amount);
+            if let Some(authority) = authority_fee {
+                if authority != src.fee_amount {
+                    tracing::warn!(
+                        gateway_transaction_id = %id,
+                        authority_fee = %authority,
+                        recorded_fee = %src.fee_amount,
+                        "provider-reported fee diverges from the recorded estimate — the recorded fee books; reconcile against the provider statement"
+                    );
+                }
+            }
+            let net = authority_gross - fee;
+            Self::check_money(authority_gross, fee, net)?;
+            if authority_gross != src.gross_amount {
+                return Err(GatewayError::InvalidMoney(format!(
+                    "authority gross {} != recorded gross {} for provider txn '{}'",
+                    authority_gross, src.gross_amount, provider_transaction_id
+                )));
+            }
+
+            // Audit stamp of the exact verified bytes — first delivery wins; a
+            // redelivery keeps the original. Post-gate, post-verify only.
+            if let Some(payload) = raw_payload {
+                let _ = self.txns.stamp_raw_payload(&self.db_pool, id, payload).await;
+            }
+
+            self.settle_transaction(id, fee_sink).await
+        })
+        .await
+    }
+
+    /// Stamp-back the PaymentEntry the composition ACL created for a settled
+    /// gateway transaction. CAS on `payment_entry_id IS NULL` — a redelivered
+    /// ACL drive never re-points the link. Returns 1 when this call linked,
+    /// 0 when a link already existed (idempotent).
+    pub async fn link_payment_entry(
+        &self,
+        company_id: Uuid,
+        gateway_transaction_id: Uuid,
+        payment_entry_id: Uuid,
+    ) -> Result<u64, GatewayError> {
+        company_scope::with_company_scope(Some(company_id), async {
+            self.txns
+                .link_payment_entry(&self.db_pool, gateway_transaction_id, payment_entry_id)
+                .await
+                .map_err(GatewayError::Db)
+        })
+        .await
+    }
+
     /// Borrow the event sink (for wiring / inspection).
     pub fn event_sink(&self) -> &Arc<dyn GatewayEventSink> {
         &self.sink
@@ -330,7 +468,9 @@ impl GatewayWriteService {
             return Err(GatewayError::InvalidMoney("negative amount".into()));
         }
         if net != gross - fee {
-            return Err(GatewayError::InvalidMoney(format!("net {net} != gross {gross} - fee {fee}")));
+            return Err(GatewayError::InvalidMoney(format!(
+                "net {net} != gross {gross} - fee {fee}"
+            )));
         }
         Ok(())
     }

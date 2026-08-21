@@ -5,11 +5,11 @@
 //! These DTOs are the ONLY types other modules should use.
 //! They are decoupled from internal domain entities.
 
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
+use crate::domain::entity::*;
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
-use crate::domain::entity::*;
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 // ============================================================================
 // GATEWAYTRANSACTION TYPES

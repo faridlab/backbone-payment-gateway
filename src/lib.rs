@@ -18,12 +18,12 @@
 #![allow(unused_imports)]
 
 // Generated modules
-pub mod domain;
-pub mod infrastructure;
 pub mod application;
+pub mod domain;
+pub mod exports;
+pub mod infrastructure;
 pub mod presentation;
 pub mod seeders;
-pub mod exports;
 
 // Re-exports for convenience - Domain entities
 pub use domain::entity::*;
@@ -35,14 +35,16 @@ pub use infrastructure::persistence::*;
 pub use application::service::GatewayTransactionService;
 pub use application::service::PaymentGatewayProviderService;
 
-use std::sync::Arc;
 use axum::Router;
 use sqlx::PgPool;
+use std::sync::Arc;
 
 // <<< CUSTOM
+#[cfg(feature = "codecs")]
 use application::service::{
-    GatewayEventSink, GatewayWriteService, GlPostSink, LoggingGatewaySink,
+    CredentialReader, GatewayCodecRegistry, StatusRefetch, WebhookIngestService,
 };
+use application::service::{GatewayEventSink, GatewayWriteService, GlPostSink, LoggingGatewaySink};
 use presentation::http::{create_gateway_webhook_routes, WebhookState};
 // END CUSTOM
 /// PaymentGateway module configuration
@@ -67,6 +69,12 @@ pub struct PaymentGatewayModule {
     /// Composition-provided fee sink. `None` ⇒ `gateway_webhook_router()` returns
     /// `None` (the webhook cannot post the fee companion journal without one).
     pub fee_sink: Option<Arc<dyn GlPostSink>>,
+    /// The verified webhook ingest pipeline, built when composition provided both
+    /// I/O ports (credential reader + status re-fetcher) and a fee sink. `None`
+    /// ⇒ the bare webhook routes cannot be mounted (they would have no way to
+    /// verify or re-fetch — mounting them is refused, not degraded).
+    #[cfg(feature = "codecs")]
+    pub ingest_service: Option<Arc<WebhookIngestService>>,
     // END CUSTOM
 }
 
@@ -83,13 +91,16 @@ impl PaymentGatewayModule {
     /// real deployment; use this only in trusted/admin/seeding contexts.
     pub fn all_crud_routes(&self) -> Router {
         use presentation::http::{
-            create_gateway_transaction_routes,
-            create_payment_gateway_provider_routes,
+            create_gateway_transaction_routes, create_payment_gateway_provider_routes,
         };
 
         Router::new()
-            .merge(create_gateway_transaction_routes(self.gateway_transaction_service.clone()))
-            .merge(create_payment_gateway_provider_routes(self.payment_gateway_provider_service.clone()))
+            .merge(create_gateway_transaction_routes(
+                self.gateway_transaction_service.clone(),
+            ))
+            .merge(create_payment_gateway_provider_routes(
+                self.payment_gateway_provider_service.clone(),
+            ))
     }
 
     /// Deprecated alias for [`Self::all_crud_routes`]. `routes()` reads like
@@ -97,7 +108,9 @@ impl PaymentGatewayModule {
     /// mount exposes unguarded writes. Compose a guarded router (read + validated
     /// writes) for production, or call `all_crud_routes()` to opt into the full
     /// unguarded surface explicitly.
-    #[deprecated(note = "mounts unvalidated generic CRUD; prefer readonly_routes() + validated writes, or all_crud_routes() for the full/unguarded surface")]
+    #[deprecated(
+        note = "mounts unvalidated generic CRUD; prefer readonly_routes() + validated writes, or all_crud_routes() for the full/unguarded surface"
+    )]
     pub fn routes(&self) -> Router {
         self.all_crud_routes()
     }
@@ -109,13 +122,16 @@ impl PaymentGatewayModule {
     /// merge validated write routes (or a write service's HTTP layer) onto it.
     pub fn readonly_routes(&self) -> Router {
         use presentation::http::{
-            create_gateway_transaction_read_routes,
-            create_payment_gateway_provider_read_routes,
+            create_gateway_transaction_read_routes, create_payment_gateway_provider_read_routes,
         };
 
         Router::new()
-            .merge(create_gateway_transaction_read_routes(self.gateway_transaction_service.clone()))
-            .merge(create_payment_gateway_provider_read_routes(self.payment_gateway_provider_service.clone()))
+            .merge(create_gateway_transaction_read_routes(
+                self.gateway_transaction_service.clone(),
+            ))
+            .merge(create_payment_gateway_provider_read_routes(
+                self.payment_gateway_provider_service.clone(),
+            ))
     }
 
     // <<< CUSTOM METHODS
@@ -131,6 +147,39 @@ impl PaymentGatewayModule {
             fee_sink,
         }))
     }
+
+    /// The provider-config READ surface (GET endpoints on
+    /// payment_gateway_providers). Compose with
+    /// [`Self::provider_config_write_routes`] so a host can gate writes
+    /// behind its own role check while reads ride tenant auth alone.
+    pub fn provider_config_read_routes(&self) -> Router {
+        use presentation::http::create_payment_gateway_provider_read_routes;
+        create_payment_gateway_provider_read_routes(self.payment_gateway_provider_service.clone())
+    }
+
+    /// The provider-config WRITE surface (unguarded generic mutations on
+    /// payment_gateway_providers). A host MUST wrap this in its own
+    /// authorization before mounting — the generic CRUD carries no domain
+    /// validation.
+    pub fn provider_config_write_routes(&self) -> Router {
+        use presentation::http::create_payment_gateway_provider_write_routes;
+        create_payment_gateway_provider_write_routes(self.payment_gateway_provider_service.clone())
+    }
+
+    /// The gateway-transaction READ surface alone. Provider-fed rows are
+    /// never operator-writable over HTTP — a host composes this as the
+    /// transaction surface, never the generic writes.
+    pub fn transaction_read_routes(&self) -> Router {
+        use presentation::http::create_gateway_transaction_read_routes;
+        create_gateway_transaction_read_routes(self.gateway_transaction_service.clone())
+    }
+
+    /// The verified ingest pipeline, when composition wired its ports. The bare
+    /// webhook routes are only mountable through this — no pipeline, no route.
+    #[cfg(feature = "codecs")]
+    pub fn ingest_service(&self) -> Option<Arc<WebhookIngestService>> {
+        self.ingest_service.clone()
+    }
     // END CUSTOM
 }
 
@@ -140,6 +189,10 @@ pub struct PaymentGatewayModuleBuilder {
     // <<< CUSTOM
     fee_sink: Option<Arc<dyn GlPostSink>>,
     event_sink: Option<Arc<dyn GatewayEventSink>>,
+    #[cfg(feature = "codecs")]
+    credential_reader: Option<Arc<dyn CredentialReader>>,
+    #[cfg(feature = "codecs")]
+    refetcher: Option<Arc<dyn StatusRefetch>>,
     // END CUSTOM
 }
 
@@ -151,6 +204,10 @@ impl PaymentGatewayModuleBuilder {
             // <<< CUSTOM
             fee_sink: None,
             event_sink: None,
+            #[cfg(feature = "codecs")]
+            credential_reader: None,
+            #[cfg(feature = "codecs")]
+            refetcher: None,
             // END CUSTOM
         }
     }
@@ -177,29 +234,74 @@ impl PaymentGatewayModuleBuilder {
         self.event_sink = Some(sink);
         self
     }
+
+    /// Provide the credential-store read port (composition's adapter over the
+    /// credential service). Required, together with [`Self::with_refetcher`]
+    /// and a fee sink, for [`PaymentGatewayModule::ingest_service`] to exist.
+    #[cfg(feature = "codecs")]
+    pub fn with_credential_reader(mut self, reader: Arc<dyn CredentialReader>) -> Self {
+        self.credential_reader = Some(reader);
+        self
+    }
+
+    /// Provide the provider status re-fetch port (composition's API clients).
+    /// Required, together with [`Self::with_credential_reader`] and a fee sink,
+    /// for [`PaymentGatewayModule::ingest_service`] to exist.
+    #[cfg(feature = "codecs")]
+    pub fn with_refetcher(mut self, refetcher: Arc<dyn StatusRefetch>) -> Self {
+        self.refetcher = Some(refetcher);
+        self
+    }
     // END CUSTOM
 
     /// Build the module with configured dependencies
     pub fn build(self) -> anyhow::Result<PaymentGatewayModule> {
-        let db_pool = self.db_pool
+        let db_pool = self
+            .db_pool
             .ok_or_else(|| anyhow::anyhow!("Database pool not configured"))?;
 
         // GatewayTransaction service
-        let gateway_transaction_repository = Arc::new(GatewayTransactionRepository::new(db_pool.clone()));
-        let gateway_transaction_service = Arc::new(GatewayTransactionService::with_repository(gateway_transaction_repository.clone()));
+        let gateway_transaction_repository =
+            Arc::new(GatewayTransactionRepository::new(db_pool.clone()));
+        let gateway_transaction_service = Arc::new(GatewayTransactionService::with_repository(
+            gateway_transaction_repository.clone(),
+        ));
 
         // PaymentGatewayProvider service
-        let payment_gateway_provider_repository = Arc::new(PaymentGatewayProviderRepository::new(db_pool.clone()));
-        let payment_gateway_provider_service = Arc::new(PaymentGatewayProviderService::with_repository(payment_gateway_provider_repository.clone()));
+        let payment_gateway_provider_repository =
+            Arc::new(PaymentGatewayProviderRepository::new(db_pool.clone()));
+        let payment_gateway_provider_service =
+            Arc::new(PaymentGatewayProviderService::with_repository(
+                payment_gateway_provider_repository.clone(),
+            ));
 
         // <<< CUSTOM
         // The settlement engine: defaults to a logging event sink when composition
         // hasn't wired a durable bus. The fee sink is held separately so the webhook
         // router is built iff composition provided one (gateway_webhook_router -> None otherwise).
-        let event_sink: Arc<dyn GatewayEventSink> =
-            self.event_sink.unwrap_or_else(|| Arc::new(LoggingGatewaySink));
+        let event_sink: Arc<dyn GatewayEventSink> = self
+            .event_sink
+            .unwrap_or_else(|| Arc::new(LoggingGatewaySink));
         let write_service = Arc::new(GatewayWriteService::with_sink(db_pool.clone(), event_sink));
         let fee_sink = self.fee_sink;
+
+        // The verified ingest pipeline exists only when composition wired BOTH
+        // I/O ports (credential reader + re-fetcher) AND a fee sink — the bare
+        // webhook routes are all-or-nothing, never mounted degraded.
+        #[cfg(feature = "codecs")]
+        let ingest_service = match (self.credential_reader, self.refetcher, fee_sink.clone()) {
+            (Some(reader), Some(refetcher), Some(fee_sink)) => {
+                Some(Arc::new(WebhookIngestService::new(
+                    db_pool.clone(),
+                    write_service.clone(),
+                    GatewayCodecRegistry::with_builtin(),
+                    reader,
+                    refetcher,
+                    fee_sink,
+                )))
+            }
+            _ => None,
+        };
         // END CUSTOM
 
         Ok(PaymentGatewayModule {
@@ -208,6 +310,8 @@ impl PaymentGatewayModuleBuilder {
             // <<< CUSTOM
             write_service,
             fee_sink,
+            #[cfg(feature = "codecs")]
+            ingest_service,
             // END CUSTOM
         })
     }

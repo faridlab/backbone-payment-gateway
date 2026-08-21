@@ -134,6 +134,8 @@ async fn apply_settlement_acl(
             party_account_id: ar_account,
             paid_amount: s.gross_amount,
             reference_no: Some(s.provider_transaction_id.clone()),
+            method: None,
+            provider_txn_id: None,
             allocations: vec![],
             withholding_amount: rust_decimal::Decimal::ZERO,
             withholding_account_id: None,
@@ -148,12 +150,25 @@ async fn apply_settlement_acl(
 }
 
 async fn seed_gateway_tx(pool: &PgPool, company: Uuid, bank: Uuid, gross: Decimal, fee: Decimal) -> Uuid {
+    // The payment settle path probes `accounting.accounts.is_reconcilable` for the bank account to
+    // pick its landing state (in_flight vs paid), so the seam DB carries a minimal accounting
+    // schema and the bank + A/R accounts must exist as readable rows for the company.
+    for (id, code, name, at, st, rec) in [
+        (bank, "1110", "Bank", "asset", "bank", true),
+        (Uuid::new_v4(), "1200", "A/R", "asset", "accounts_receivable", false),
+    ] {
+        sqlx::query(r#"INSERT INTO accounting.accounts (id, company_id, account_number, account_code, name, account_type, account_subtype, normal_balance, is_header, is_detail, is_reconcilable, status)
+            VALUES ($1,$2,$3,$4,$5,$6::account_type,$7::account_subtype,'debit'::normal_balance,false,true,$8,'active'::account_status)"#)
+            .bind(id).bind(company).bind(code).bind(code).bind(name).bind(at).bind(st).bind(rec)
+            .execute(pool).await.expect("seed acct");
+    }
+
     let provider = Uuid::new_v4();
     let fee_acc = Uuid::new_v4();
     sqlx::query(
         r#"INSERT INTO payment_gateway.payment_gateway_providers
-             (id, code, company_id, display_name, fee_account_id, settlement_account_id, is_active, metadata)
-           VALUES ($1, 'midtrans'::gateway_provider_code, $2, $3, $4, $5, TRUE, $6::jsonb)"#,
+             (id, code, company_id, display_name, fee_account_id, settlement_account_id, status, metadata)
+           VALUES ($1, 'midtrans'::gateway_provider_code, $2, $3, $4, $5, 'active', $6::jsonb)"#,
     )
     .bind(provider)
     .bind(company)

@@ -23,6 +23,7 @@ pub mod infrastructure;
 pub mod application;
 pub mod presentation;
 pub mod seeders;
+pub mod exports;
 
 // Re-exports for convenience - Domain entities
 pub use domain::entity::*;
@@ -57,9 +58,9 @@ use presentation::http::{create_gateway_webhook_routes, WebhookState};
 /// let router = payment-gateway.all_crud_routes();
 /// ```
 pub struct PaymentGatewayModule {
-    pub gateway_transaction_service: Arc<GatewayTransactionService>,
-    pub payment_gateway_provider_service: Arc<PaymentGatewayProviderService>,
-    // <<< CUSTOM
+    pub(crate) gateway_transaction_service: Arc<GatewayTransactionService>,
+    pub(crate) payment_gateway_provider_service: Arc<PaymentGatewayProviderService>,
+    // <<< CUSTOM FIELDS
     /// The settlement engine (settle + reverse). Exposed so composition can mount
     /// the webhook router or drive settlement directly.
     pub write_service: Arc<GatewayWriteService>,
@@ -96,12 +97,28 @@ impl PaymentGatewayModule {
     /// mount exposes unguarded writes. Compose a guarded router (read + validated
     /// writes) for production, or call `all_crud_routes()` to opt into the full
     /// unguarded surface explicitly.
-    #[deprecated(note = "mounts unvalidated generic CRUD on every entity; compose a guarded router for production, or call all_crud_routes() for the intentional full/unguarded surface")]
+    #[deprecated(note = "mounts unvalidated generic CRUD; prefer readonly_routes() + validated writes, or all_crud_routes() for the full/unguarded surface")]
     pub fn routes(&self) -> Router {
         self.all_crud_routes()
     }
 
-    // <<< CUSTOM
+    /// Read-only routes for every entity (GET endpoints only) — the safe base.
+    ///
+    /// Generic mutation can't reach here, so this surface cannot bypass a
+    /// validated write service's invariants. Use this as the production base and
+    /// merge validated write routes (or a write service's HTTP layer) onto it.
+    pub fn readonly_routes(&self) -> Router {
+        use presentation::http::{
+            create_gateway_transaction_read_routes,
+            create_payment_gateway_provider_read_routes,
+        };
+
+        Router::new()
+            .merge(create_gateway_transaction_read_routes(self.gateway_transaction_service.clone()))
+            .merge(create_payment_gateway_provider_read_routes(self.payment_gateway_provider_service.clone()))
+    }
+
+    // <<< CUSTOM METHODS
     /// Build the gateway webhook router (`POST /webhook/settle`), if a fee sink
     /// was configured on the builder. Returns `None` when no fee sink was provided
     /// — the webhook cannot post the fee companion journal without one. The
@@ -174,6 +191,7 @@ impl PaymentGatewayModuleBuilder {
         // PaymentGatewayProvider service
         let payment_gateway_provider_repository = Arc::new(PaymentGatewayProviderRepository::new(db_pool.clone()));
         let payment_gateway_provider_service = Arc::new(PaymentGatewayProviderService::with_repository(payment_gateway_provider_repository.clone()));
+
         // <<< CUSTOM
         // The settlement engine: defaults to a logging event sink when composition
         // hasn't wired a durable bus. The fee sink is held separately so the webhook
@@ -182,9 +200,6 @@ impl PaymentGatewayModuleBuilder {
             self.event_sink.unwrap_or_else(|| Arc::new(LoggingGatewaySink));
         let write_service = Arc::new(GatewayWriteService::with_sink(db_pool.clone(), event_sink));
         let fee_sink = self.fee_sink;
-        // END CUSTOM
-
-        // <<< CUSTOM
         // END CUSTOM
 
         Ok(PaymentGatewayModule {

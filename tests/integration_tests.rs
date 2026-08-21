@@ -37,4 +37,3 @@ async fn test_payment_gateway_provider_api() {
         panic!("{} tests failed", failed.len());
     }
 }
-

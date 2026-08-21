@@ -132,6 +132,13 @@ pub fn create_gateway_transaction_read_routes(service: Arc<GatewayTransactionSer
 ///
 /// These routes must NOT be publicly exposed. Wrap them with an auth
 /// middleware before nesting into the application router.
+///
+/// # This is unguarded generic CRUD, not a validated write path
+///
+/// These are plain create/update/patch/delete mutations over the entity row —
+/// they bypass all business invariants. If the module exposes a validated write
+/// service (e.g. a command router over its domain engine), serve THAT instead
+/// for any mutation that must respect domain rules.
 pub fn create_gateway_transaction_write_routes(service: Arc<GatewayTransactionService>) -> Router {
     BackboneCrudHandler::<GatewayTransactionService, GatewayTransaction, CreateGatewayTransactionDto, UpdateGatewayTransactionDto, GatewayTransactionResponseDto>::write_routes(
         service,
@@ -180,4 +187,3 @@ pub fn create_protected_gateway_transaction_routes<A: AuthMiddleware + Send + Sy
             }
         }))
 }
-

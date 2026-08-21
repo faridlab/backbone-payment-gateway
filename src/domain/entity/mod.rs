@@ -8,6 +8,7 @@ pub mod gateway_direction;
 pub mod gateway_party_type;
 pub mod gateway_transaction_status;
 pub mod gateway_posting_state;
+pub mod provider_status;
 pub mod gateway_provider_code;
 
 // Re-exports
@@ -21,6 +22,7 @@ pub use gateway_direction::GatewayDirection;
 pub use gateway_party_type::GatewayPartyType;
 pub use gateway_transaction_status::GatewayTransactionStatus;
 pub use gateway_posting_state::GatewayPostingState;
+pub use provider_status::ProviderStatus;
 pub use gateway_provider_code::GatewayProviderCode;
 
 // ==========================================================================

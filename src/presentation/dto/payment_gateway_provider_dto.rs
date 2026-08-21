@@ -19,6 +19,7 @@ use validator::Validate;
 use crate::domain::entity::PaymentGatewayProvider;
 use crate::domain::entity::AuditMetadata;
 use crate::domain::entity::GatewayProviderCode;
+use crate::domain::entity::ProviderStatus;
 
 // =============================================================================
 // Create DTO
@@ -48,9 +49,7 @@ pub struct CreatePaymentGatewayProviderDto {
     pub fee_account_id: Option<Uuid>,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "settlement_account_id")]
     pub settlement_account_id: Option<Uuid>,
-    #[cfg_attr(feature = "openapi", schema(example = true))]
-    #[serde(alias = "is_active")]
-    pub is_active: bool,
+    pub status: ProviderStatus,
 }
 
 // =============================================================================
@@ -81,9 +80,7 @@ pub struct UpdatePaymentGatewayProviderDto {
     pub fee_account_id: Option<Uuid>,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "settlement_account_id")]
     pub settlement_account_id: Option<Uuid>,
-    #[cfg_attr(feature = "openapi", schema(example = true))]
-    #[serde(alias = "is_active")]
-    pub is_active: bool,
+    pub status: ProviderStatus,
 }
 
 // =============================================================================
@@ -115,15 +112,14 @@ pub struct PatchPaymentGatewayProviderDto {
     pub fee_account_id: Option<Uuid>,
     #[serde(skip_serializing_if = "Option::is_none", alias = "settlement_account_id")]
     pub settlement_account_id: Option<Uuid>,
-    #[cfg_attr(feature = "openapi", schema(example = true))]
-    #[serde(skip_serializing_if = "Option::is_none", alias = "is_active")]
-    pub is_active: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub status: Option<ProviderStatus>,
 }
 
 impl PatchPaymentGatewayProviderDto {
     /// Check if any field is set
     pub fn has_changes(&self) -> bool {
-        self.code.is_some() || self.company_id.is_some() || self.display_name.is_some() || self.credentials_ref.is_some() || self.fee_account_id.is_some() || self.settlement_account_id.is_some() || self.is_active.is_some()
+        self.code.is_some() || self.company_id.is_some() || self.display_name.is_some() || self.credentials_ref.is_some() || self.fee_account_id.is_some() || self.settlement_account_id.is_some() || self.status.is_some()
     }
 }
 
@@ -149,8 +145,7 @@ pub struct PaymentGatewayProviderResponseDto {
     pub credentials_ref: Option<String>,
     pub fee_account_id: Option<Uuid>,
     pub settlement_account_id: Option<Uuid>,
-    #[cfg_attr(feature = "openapi", schema(example = true))]
-    pub is_active: bool,
+    pub status: ProviderStatus,
     pub metadata: AuditMetadata,
 }
 
@@ -228,7 +223,7 @@ impl From<PaymentGatewayProvider> for PaymentGatewayProviderResponseDto {
             credentials_ref: entity.credentials_ref,
             fee_account_id: entity.fee_account_id,
             settlement_account_id: entity.settlement_account_id,
-            is_active: entity.is_active,
+            status: entity.status,
             metadata: entity.metadata,
         }
     }
@@ -257,7 +252,7 @@ impl From<CreatePaymentGatewayProviderDto> for PaymentGatewayProvider {
             credentials_ref: dto.credentials_ref,
             fee_account_id: dto.fee_account_id,
             settlement_account_id: dto.settlement_account_id,
-            is_active: dto.is_active,
+            status: dto.status,
             metadata: AuditMetadata::default(),
         }
     }
@@ -273,7 +268,7 @@ impl From<&PaymentGatewayProvider> for PaymentGatewayProviderResponseDto {
             credentials_ref: entity.credentials_ref.clone(),
             fee_account_id: entity.fee_account_id.clone(),
             settlement_account_id: entity.settlement_account_id.clone(),
-            is_active: entity.is_active.clone(),
+            status: entity.status.clone(),
             metadata: entity.metadata.clone(),
         }
     }
@@ -293,7 +288,7 @@ impl backbone_core::ApplyUpdateDto<UpdatePaymentGatewayProviderDto> for PaymentG
         self.credentials_ref = dto.credentials_ref;
         self.fee_account_id = dto.fee_account_id;
         self.settlement_account_id = dto.settlement_account_id;
-        self.is_active = dto.is_active;
+        self.status = dto.status;
         Ok(self)
     }
 }

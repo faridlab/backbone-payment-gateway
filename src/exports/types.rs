@@ -127,7 +127,7 @@ pub struct PaymentGatewayProviderDto {
     pub credentials_ref: Option<String>,
     pub fee_account_id: Option<Uuid>,
     pub settlement_account_id: Option<Uuid>,
-    pub is_active: bool,
+    pub status: ProviderStatus,
     pub metadata: serde_json::Value,
 }
 
@@ -136,6 +136,7 @@ pub struct PaymentGatewayProviderDto {
 pub struct PaymentGatewayProviderSummary {
     pub id: PaymentGatewayProviderId,
     pub display_name: String,
+    pub status: ProviderStatus,
 }
 
 /// Reference to PaymentGatewayProvider for foreign key relationships

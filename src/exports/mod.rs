@@ -8,7 +8,7 @@
 //! ## Usage from other modules
 //!
 //! ```text
-//! use payment-gateway::exports::{GatewayTransactionDto, PaymentGatewayQueryService};
+//! use payment-gateway::exports::{GatewayTransactionDto};
 //! ```
 
 mod types;
@@ -33,9 +33,6 @@ pub use events::*;
 /// - `PaymentGatewayProviderDto` - Data transfer object for PaymentGatewayProvider
 /// - `PaymentGatewayProviderSummary` - Summary view of PaymentGatewayProvider
 /// - `PaymentGatewayProviderId` - Type-safe ID wrapper
-///
-/// ## Public Services
-/// - `PaymentGatewayQueryService` - Read-only queries
 ///
 /// ## Public Events
 /// - `GatewayTransactionCreatedEvent` - Published when GatewayTransaction is created

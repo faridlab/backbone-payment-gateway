@@ -52,10 +52,11 @@ models:
         attributes: ["@exclude_from_foreign_key_check"]
         description: "Bank/Cash account net funds land in # logical FK to accounting.Account.id"
 
-      is_active:
-        type: bool
-        attributes: ["@default(true)"]
-        description: "Available for new charges"
+      # replaces is_active (boolean flipped to lifecycle enum)
+      status:
+        type: ProviderStatus
+        attributes: ["@default(active)"]
+        description: "Lifecycle (only active providers accept new charges)"
 
       metadata:
         type: Metadata
@@ -67,9 +68,18 @@ models:
         fields: [company_id, code]
         where: "deleted_at IS NULL"
       - type: index
-        fields: [code, is_active]
+        fields: [code, status]
 
 enums:
+  - name: ProviderStatus
+    description: "Lifecycle of a configured gateway provider"
+    variants:
+      - name: active
+        description: "Accepts new charges"
+        default: true
+      - name: inactive
+        description: "Retired; existing references settle but no new charges"
+
   - name: GatewayProviderCode
     description: "Which gateway provider"
     variants:

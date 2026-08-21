@@ -4,6 +4,7 @@ use sqlx::FromRow;
 use uuid::Uuid;
 
 use super::GatewayProviderCode;
+use super::ProviderStatus;
 use super::AuditMetadata;
 
 /// Strongly-typed ID for PaymentGatewayProvider
@@ -56,7 +57,7 @@ pub struct PaymentGatewayProvider {
     pub credentials_ref: Option<String>,
     pub fee_account_id: Option<Uuid>,
     pub settlement_account_id: Option<Uuid>,
-    pub is_active: bool,
+    pub status: ProviderStatus,
     #[serde(default)]
     #[sqlx(json)]
     pub metadata: AuditMetadata,
@@ -65,11 +66,11 @@ pub struct PaymentGatewayProvider {
 impl PaymentGatewayProvider {
     /// Create a builder for PaymentGatewayProvider
     pub fn builder() -> PaymentGatewayProviderBuilder {
-        PaymentGatewayProviderBuilder::default()
+        <PaymentGatewayProviderBuilder as Default>::default()
     }
 
     /// Create a new PaymentGatewayProvider with required fields
-    pub fn new(code: GatewayProviderCode, company_id: Uuid, display_name: String, is_active: bool) -> Self {
+    pub fn new(code: GatewayProviderCode, company_id: Uuid, display_name: String, status: ProviderStatus) -> Self {
         Self {
             id: Uuid::new_v4(),
             code,
@@ -78,7 +79,7 @@ impl PaymentGatewayProvider {
             credentials_ref: None,
             fee_account_id: None,
             settlement_account_id: None,
-            is_active,
+            status,
             metadata: AuditMetadata::default(),
         }
     }
@@ -133,6 +134,11 @@ impl PaymentGatewayProvider {
         self.metadata.deleted_by.as_ref()
     }
 
+    /// Get the current status
+    pub fn status(&self) -> &ProviderStatus {
+        &self.status
+    }
+
 
     // ==========================================================
     // Fluent Setters (with_* for optional fields)
@@ -182,8 +188,8 @@ impl PaymentGatewayProvider {
                 "settlement_account_id" => {
                     if let Ok(v) = serde_json::from_value(value) { self.settlement_account_id = v; }
                 }
-                "is_active" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.is_active = v; }
+                "status" => {
+                    if let Ok(v) = serde_json::from_value(value) { self.status = v; }
                 }
                 _ => {} // ignore unknown fields
             }
@@ -243,6 +249,7 @@ impl backbone_orm::EntityRepoMeta for PaymentGatewayProvider {
         m.insert("fee_account_id".to_string(), "uuid".to_string());
         m.insert("settlement_account_id".to_string(), "uuid".to_string());
         m.insert("code".to_string(), "gateway_provider_code".to_string());
+        m.insert("status".to_string(), "provider_status".to_string());
         m
     }
     fn search_fields() -> &'static [&'static str] {
@@ -265,7 +272,7 @@ pub struct PaymentGatewayProviderBuilder {
     credentials_ref: Option<String>,
     fee_account_id: Option<Uuid>,
     settlement_account_id: Option<Uuid>,
-    is_active: Option<bool>,
+    status: Option<ProviderStatus>,
 }
 
 impl PaymentGatewayProviderBuilder {
@@ -305,9 +312,9 @@ impl PaymentGatewayProviderBuilder {
         self
     }
 
-    /// Set the is_active field (default: `true`)
-    pub fn is_active(mut self, value: bool) -> Self {
-        self.is_active = Some(value);
+    /// Set the status field (default: `ProviderStatus::default()`)
+    pub fn status(mut self, value: ProviderStatus) -> Self {
+        self.status = Some(value);
         self
     }
 
@@ -327,7 +334,7 @@ impl PaymentGatewayProviderBuilder {
             credentials_ref: self.credentials_ref,
             fee_account_id: self.fee_account_id,
             settlement_account_id: self.settlement_account_id,
-            is_active: self.is_active.unwrap_or(true),
+            status: self.status.unwrap_or_default(),
             metadata: AuditMetadata::default(),
         })
     }

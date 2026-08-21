@@ -81,7 +81,7 @@ pub struct GatewayTransaction {
 impl GatewayTransaction {
     /// Create a builder for GatewayTransaction
     pub fn builder() -> GatewayTransactionBuilder {
-        GatewayTransactionBuilder::default()
+        <GatewayTransactionBuilder as Default>::default()
     }
 
     /// Create a new GatewayTransaction with required fields
@@ -500,15 +500,15 @@ impl GatewayTransactionBuilder {
             provider_id,
             provider_code,
             provider_transaction_id,
-            direction: self.direction.unwrap_or(GatewayDirection::default()),
+            direction: self.direction.unwrap_or_default(),
             party_type: self.party_type,
             party_id: self.party_id,
             gross_amount,
             fee_amount: self.fee_amount.unwrap_or(Decimal::from(0)),
             net_amount,
             currency: self.currency.unwrap_or("IDR".to_string()),
-            status: self.status.unwrap_or(GatewayTransactionStatus::default()),
-            posting_state: self.posting_state.unwrap_or(GatewayPostingState::default()),
+            status: self.status.unwrap_or_default(),
+            posting_state: self.posting_state.unwrap_or_default(),
             payment_entry_id: self.payment_entry_id,
             fee_post_id: self.fee_post_id,
             settled_at: self.settled_at,

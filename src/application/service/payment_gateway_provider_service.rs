@@ -7,9 +7,9 @@
 
 use backbone_core::GenericCrudService;
 
+use crate::presentation::dto::{CreatePaymentGatewayProviderDto, UpdatePaymentGatewayProviderDto};
 use crate::domain::entity::PaymentGatewayProvider;
 use crate::infrastructure::persistence::PaymentGatewayProviderRepository;
-use crate::presentation::dto::{CreatePaymentGatewayProviderDto, UpdatePaymentGatewayProviderDto};
 
 /// Application service for PaymentGatewayProvider entities.
 ///

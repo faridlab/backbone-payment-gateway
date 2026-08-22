@@ -4,7 +4,7 @@
 //!
 //! Combinators (AND/OR/NOT) come from `backbone_core::Specification`.
 
-pub use backbone_core::{AndSpecification, NotSpecification, OrSpecification, Specification};
+pub use backbone_core::{Specification, AndSpecification, OrSpecification, NotSpecification};
 
 pub mod gateway_transaction_specification;
 pub mod payment_gateway_provider_specification;

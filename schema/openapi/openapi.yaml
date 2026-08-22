@@ -1082,6 +1082,10 @@ components:
           nullable: true
           type: string
           format: uuid
+        clearing_account_id:
+          nullable: true
+          type: string
+          format: uuid
         status:
           type: string
         metadata:
@@ -1129,6 +1133,10 @@ components:
           nullable: true
           type: string
           format: uuid
+        clearing_account_id:
+          nullable: true
+          type: string
+          format: uuid
         status:
           type: string
         metadata:
@@ -1163,6 +1171,10 @@ components:
           nullable: true
           type: string
           format: uuid
+        clearing_account_id:
+          nullable: true
+          type: string
+          format: uuid
         status:
           type: string
         metadata:
@@ -1188,6 +1200,10 @@ components:
           type: string
           format: uuid
         settlement_account_id:
+          nullable: true
+          type: string
+          format: uuid
+        clearing_account_id:
           nullable: true
           type: string
           format: uuid

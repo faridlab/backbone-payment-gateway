@@ -13,14 +13,8 @@ pub mod gateway_webhook_handler;
 // END CUSTOM
 
 // Re-exports
-pub use gateway_transaction_handler::{
-    create_gateway_transaction_read_routes, create_gateway_transaction_routes,
-    create_gateway_transaction_write_routes,
-};
-pub use payment_gateway_provider_handler::{
-    create_payment_gateway_provider_read_routes, create_payment_gateway_provider_routes,
-    create_payment_gateway_provider_write_routes,
-};
+pub use gateway_transaction_handler::{create_gateway_transaction_routes, create_gateway_transaction_read_routes, create_gateway_transaction_write_routes};
+pub use payment_gateway_provider_handler::{create_payment_gateway_provider_routes, create_payment_gateway_provider_read_routes, create_payment_gateway_provider_write_routes};
 // <<< CUSTOM
 pub use gateway_webhook_handler::{create_gateway_webhook_routes, WebhookState};
 // END CUSTOM

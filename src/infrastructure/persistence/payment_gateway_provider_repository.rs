@@ -22,11 +22,8 @@ pub struct PaymentGatewayProviderRepository(
 );
 
 impl std::ops::Deref for PaymentGatewayProviderRepository {
-    type Target =
-        backbone_orm::GenericCrudRepository<PaymentGatewayProvider, backbone_orm::SoftDelete>;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
+    type Target = backbone_orm::GenericCrudRepository<PaymentGatewayProvider, backbone_orm::SoftDelete>;
+    fn deref(&self) -> &Self::Target { &self.0 }
 }
 
 impl PaymentGatewayProviderRepository {
@@ -36,8 +33,4 @@ impl PaymentGatewayProviderRepository {
     }
 }
 
-backbone_core::impl_crud_repository!(
-    PaymentGatewayProviderRepository,
-    PaymentGatewayProvider,
-    soft_delete
-);
+backbone_core::impl_crud_repository!(PaymentGatewayProviderRepository, PaymentGatewayProvider, soft_delete);

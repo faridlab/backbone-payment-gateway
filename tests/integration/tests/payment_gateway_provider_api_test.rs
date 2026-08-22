@@ -30,6 +30,7 @@ impl TestDataGenerator for PaymentGatewayProviderTestData {
             "credentials_ref": null,
             "fee_account_id": null,
             "settlement_account_id": null,
+            "clearing_account_id": null,
             "status": "active",
             "metadata": json!({}),
         })
@@ -45,6 +46,7 @@ impl TestDataGenerator for PaymentGatewayProviderTestData {
             "credentials_ref": null,
             "fee_account_id": null,
             "settlement_account_id": null,
+            "clearing_account_id": null,
             "status": "active",
             "metadata": json!({}),
         })

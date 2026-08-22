@@ -5,9 +5,9 @@
 //! Returns an `EntityValidator<PaymentGatewayProvider>` pre-loaded with schema-derived
 //! field rules. Extend in the `// <<< CUSTOM` zone.
 
-use crate::domain::entity::PaymentGatewayProvider;
-use backbone_core::{EntityValidator, ValidationError, ValidationErrors};
+use backbone_core::{EntityValidator, ValidationErrors, ValidationError};
 use backbone_core::{OptionalNotBlank, RequiredString};
+use crate::domain::entity::PaymentGatewayProvider;
 
 /// Validator type alias for PaymentGatewayProvider entities.
 pub type PaymentGatewayProviderValidator = EntityValidator<PaymentGatewayProvider>;
@@ -15,14 +15,8 @@ pub type PaymentGatewayProviderValidator = EntityValidator<PaymentGatewayProvide
 /// Build a validator for PaymentGatewayProvider with all schema-defined field rules.
 pub fn payment_gateway_provider_validator() -> PaymentGatewayProviderValidator {
     EntityValidator::new()
-        .rule(RequiredString::new(
-            "display_name",
-            |e: &PaymentGatewayProvider| &e.display_name,
-        ))
-        .rule(OptionalNotBlank::new(
-            "credentials_ref",
-            |e: &PaymentGatewayProvider| e.credentials_ref.as_deref(),
-        ))
+        .rule(RequiredString::new("display_name", |e: &PaymentGatewayProvider| &e.display_name))
+        .rule(OptionalNotBlank::new("credentials_ref", |e: &PaymentGatewayProvider| e.credentials_ref.as_deref()))
     // <<< CUSTOM RULES
     // END CUSTOM RULES
 }

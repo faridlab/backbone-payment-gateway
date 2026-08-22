@@ -41,10 +41,9 @@ impl Seeder for SeedGatewayTransactionSeeder {
 
     async fn should_run(&self, pool: &PgPool) -> Result<bool> {
         // Check if payment_gateway.gateway_transactions table has any data
-        let count: (i64,) =
-            sqlx::query_as("SELECT COUNT(*) FROM payment_gateway.gateway_transactions")
-                .fetch_one(pool)
-                .await?;
+        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM payment_gateway.gateway_transactions")
+            .fetch_one(pool)
+            .await?;
         Ok(count.0 == 0)
     }
 

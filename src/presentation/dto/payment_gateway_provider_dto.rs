@@ -5,9 +5,9 @@
 //! DTOs provide a clean separation between domain entities and API
 //! representations, with validation and OpenAPI documentation support.
 
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+use chrono::{DateTime, Utc};
 
 #[cfg(feature = "openapi")]
 #[cfg(feature = "openapi")]
@@ -16,9 +16,9 @@ use utoipa::ToSchema;
 #[cfg(feature = "validation")]
 use validator::Validate;
 
+use crate::domain::entity::PaymentGatewayProvider;
 use crate::domain::entity::AuditMetadata;
 use crate::domain::entity::GatewayProviderCode;
-use crate::domain::entity::PaymentGatewayProvider;
 use crate::domain::entity::ProviderStatus;
 
 // =============================================================================
@@ -35,10 +35,7 @@ use crate::domain::entity::ProviderStatus;
 #[serde(rename_all = "camelCase")]
 pub struct CreatePaymentGatewayProviderDto {
     pub code: GatewayProviderCode,
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
+    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     #[serde(alias = "company_id")]
     pub company_id: Uuid,
     #[cfg_attr(feature = "validation", validate(length(max = 120)))]
@@ -46,24 +43,14 @@ pub struct CreatePaymentGatewayProviderDto {
     #[serde(alias = "display_name")]
     pub display_name: String,
     #[cfg_attr(feature = "validation", validate(length(max = 255)))]
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        alias = "credentials_ref"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "credentials_ref")]
     pub credentials_ref: Option<String>,
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        alias = "fee_account_id"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "fee_account_id")]
     pub fee_account_id: Option<Uuid>,
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        alias = "settlement_account_id"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "settlement_account_id")]
     pub settlement_account_id: Option<Uuid>,
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "clearing_account_id")]
+    pub clearing_account_id: Option<Uuid>,
     pub status: ProviderStatus,
 }
 
@@ -81,10 +68,7 @@ pub struct CreatePaymentGatewayProviderDto {
 #[serde(rename_all = "camelCase")]
 pub struct UpdatePaymentGatewayProviderDto {
     pub code: GatewayProviderCode,
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
+    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     #[serde(alias = "company_id")]
     pub company_id: Uuid,
     #[cfg_attr(feature = "validation", validate(length(max = 120)))]
@@ -92,24 +76,14 @@ pub struct UpdatePaymentGatewayProviderDto {
     #[serde(alias = "display_name")]
     pub display_name: String,
     #[cfg_attr(feature = "validation", validate(length(max = 255)))]
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        alias = "credentials_ref"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "credentials_ref")]
     pub credentials_ref: Option<String>,
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        alias = "fee_account_id"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "fee_account_id")]
     pub fee_account_id: Option<Uuid>,
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        alias = "settlement_account_id"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "settlement_account_id")]
     pub settlement_account_id: Option<Uuid>,
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "clearing_account_id")]
+    pub clearing_account_id: Option<Uuid>,
     pub status: ProviderStatus,
 }
 
@@ -128,10 +102,7 @@ pub struct UpdatePaymentGatewayProviderDto {
 pub struct PatchPaymentGatewayProviderDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub code: Option<GatewayProviderCode>,
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
+    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     #[serde(skip_serializing_if = "Option::is_none", alias = "company_id")]
     pub company_id: Option<Uuid>,
     #[cfg_attr(feature = "validation", validate(length(max = 120)))]
@@ -143,11 +114,10 @@ pub struct PatchPaymentGatewayProviderDto {
     pub credentials_ref: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none", alias = "fee_account_id")]
     pub fee_account_id: Option<Uuid>,
-    #[serde(
-        skip_serializing_if = "Option::is_none",
-        alias = "settlement_account_id"
-    )]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "settlement_account_id")]
     pub settlement_account_id: Option<Uuid>,
+    #[serde(skip_serializing_if = "Option::is_none", alias = "clearing_account_id")]
+    pub clearing_account_id: Option<Uuid>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<ProviderStatus>,
 }
@@ -155,13 +125,7 @@ pub struct PatchPaymentGatewayProviderDto {
 impl PatchPaymentGatewayProviderDto {
     /// Check if any field is set
     pub fn has_changes(&self) -> bool {
-        self.code.is_some()
-            || self.company_id.is_some()
-            || self.display_name.is_some()
-            || self.credentials_ref.is_some()
-            || self.fee_account_id.is_some()
-            || self.settlement_account_id.is_some()
-            || self.status.is_some()
+        self.code.is_some() || self.company_id.is_some() || self.display_name.is_some() || self.credentials_ref.is_some() || self.fee_account_id.is_some() || self.settlement_account_id.is_some() || self.clearing_account_id.is_some() || self.status.is_some()
     }
 }
 
@@ -177,22 +141,17 @@ impl PatchPaymentGatewayProviderDto {
 #[cfg_attr(feature = "openapi", derive(ToSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct PaymentGatewayProviderResponseDto {
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
+    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     pub id: Uuid,
     pub code: GatewayProviderCode,
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
+    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     pub company_id: Uuid,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     pub display_name: String,
     pub credentials_ref: Option<String>,
     pub fee_account_id: Option<Uuid>,
     pub settlement_account_id: Option<Uuid>,
+    pub clearing_account_id: Option<Uuid>,
     pub status: ProviderStatus,
     pub metadata: AuditMetadata,
 }
@@ -227,12 +186,7 @@ pub struct PaymentGatewayProviderListResponseDto {
 
 impl PaymentGatewayProviderListResponseDto {
     /// Create a new list response from items and pagination info
-    pub fn new(
-        items: Vec<PaymentGatewayProviderResponseDto>,
-        total: u64,
-        page: u32,
-        per_page: u32,
-    ) -> Self {
+    pub fn new(items: Vec<PaymentGatewayProviderResponseDto>, total: u64, page: u32, per_page: u32) -> Self {
         let total_pages = if per_page > 0 {
             ((total as f64) / (per_page as f64)).ceil() as u32
         } else {
@@ -276,6 +230,7 @@ impl From<PaymentGatewayProvider> for PaymentGatewayProviderResponseDto {
             credentials_ref: entity.credentials_ref,
             fee_account_id: entity.fee_account_id,
             settlement_account_id: entity.settlement_account_id,
+            clearing_account_id: entity.clearing_account_id,
             status: entity.status,
             metadata: entity.metadata,
         }
@@ -305,6 +260,7 @@ impl From<CreatePaymentGatewayProviderDto> for PaymentGatewayProvider {
             credentials_ref: dto.credentials_ref,
             fee_account_id: dto.fee_account_id,
             settlement_account_id: dto.settlement_account_id,
+            clearing_account_id: dto.clearing_account_id,
             status: dto.status,
             metadata: AuditMetadata::default(),
         }
@@ -321,6 +277,7 @@ impl From<&PaymentGatewayProvider> for PaymentGatewayProviderResponseDto {
             credentials_ref: entity.credentials_ref.clone(),
             fee_account_id: entity.fee_account_id.clone(),
             settlement_account_id: entity.settlement_account_id.clone(),
+            clearing_account_id: entity.clearing_account_id.clone(),
             status: entity.status.clone(),
             metadata: entity.metadata.clone(),
         }
@@ -334,16 +291,14 @@ impl backbone_core::FromCreateDto<CreatePaymentGatewayProviderDto> for PaymentGa
 }
 
 impl backbone_core::ApplyUpdateDto<UpdatePaymentGatewayProviderDto> for PaymentGatewayProvider {
-    fn apply_update(
-        mut self,
-        dto: UpdatePaymentGatewayProviderDto,
-    ) -> backbone_core::ServiceResult<Self> {
+    fn apply_update(mut self, dto: UpdatePaymentGatewayProviderDto) -> backbone_core::ServiceResult<Self> {
         self.code = dto.code;
         self.company_id = dto.company_id;
         self.display_name = dto.display_name;
         self.credentials_ref = dto.credentials_ref;
         self.fee_account_id = dto.fee_account_id;
         self.settlement_account_id = dto.settlement_account_id;
+        self.clearing_account_id = dto.clearing_account_id;
         self.status = dto.status;
         Ok(self)
     }

@@ -1,15 +1,15 @@
 use chrono::{DateTime, Utc};
-use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
+use rust_decimal::Decimal;
 
-use super::AuditMetadata;
+use super::GatewayProviderCode;
 use super::GatewayDirection;
 use super::GatewayPartyType;
-use super::GatewayPostingState;
-use super::GatewayProviderCode;
 use super::GatewayTransactionStatus;
+use super::GatewayPostingState;
+use super::AuditMetadata;
 
 /// Strongly-typed ID for GatewayTransaction
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -17,15 +17,9 @@ use super::GatewayTransactionStatus;
 pub struct GatewayTransactionId(pub Uuid);
 
 impl GatewayTransactionId {
-    pub fn new(id: Uuid) -> Self {
-        Self(id)
-    }
-    pub fn generate() -> Self {
-        Self(Uuid::new_v4())
-    }
-    pub fn into_inner(self) -> Uuid {
-        self.0
-    }
+    pub fn new(id: Uuid) -> Self { Self(id) }
+    pub fn generate() -> Self { Self(Uuid::new_v4()) }
+    pub fn into_inner(self) -> Uuid { self.0 }
 }
 
 impl std::fmt::Display for GatewayTransactionId {
@@ -42,28 +36,20 @@ impl std::str::FromStr for GatewayTransactionId {
 }
 
 impl From<Uuid> for GatewayTransactionId {
-    fn from(id: Uuid) -> Self {
-        Self(id)
-    }
+    fn from(id: Uuid) -> Self { Self(id) }
 }
 
 impl From<GatewayTransactionId> for Uuid {
-    fn from(id: GatewayTransactionId) -> Self {
-        id.0
-    }
+    fn from(id: GatewayTransactionId) -> Self { id.0 }
 }
 
 impl AsRef<Uuid> for GatewayTransactionId {
-    fn as_ref(&self) -> &Uuid {
-        &self.0
-    }
+    fn as_ref(&self) -> &Uuid { &self.0 }
 }
 
 impl std::ops::Deref for GatewayTransactionId {
     type Target = Uuid;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
+    fn deref(&self) -> &Self::Target { &self.0 }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
@@ -99,19 +85,7 @@ impl GatewayTransaction {
     }
 
     /// Create a new GatewayTransaction with required fields
-    pub fn new(
-        company_id: Uuid,
-        provider_id: Uuid,
-        provider_code: GatewayProviderCode,
-        provider_transaction_id: String,
-        direction: GatewayDirection,
-        gross_amount: Decimal,
-        fee_amount: Decimal,
-        net_amount: Decimal,
-        currency: String,
-        status: GatewayTransactionStatus,
-        posting_state: GatewayPostingState,
-    ) -> Self {
+    pub fn new(company_id: Uuid, provider_id: Uuid, provider_code: GatewayProviderCode, provider_transaction_id: String, direction: GatewayDirection, gross_amount: Decimal, fee_amount: Decimal, net_amount: Decimal, currency: String, status: GatewayTransactionStatus, posting_state: GatewayPostingState) -> Self {
         Self {
             id: Uuid::new_v4(),
             company_id,
@@ -191,6 +165,7 @@ impl GatewayTransaction {
         &self.status
     }
 
+
     // ==========================================================
     // Fluent Setters (with_* for optional fields)
     // ==========================================================
@@ -246,94 +221,58 @@ impl GatewayTransaction {
         for (key, value) in fields {
             match key.as_str() {
                 "company_id" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.company_id = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.company_id = v; }
                 }
                 "provider_id" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.provider_id = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.provider_id = v; }
                 }
                 "provider_code" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.provider_code = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.provider_code = v; }
                 }
                 "provider_transaction_id" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.provider_transaction_id = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.provider_transaction_id = v; }
                 }
                 "direction" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.direction = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.direction = v; }
                 }
                 "party_type" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.party_type = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.party_type = v; }
                 }
                 "party_id" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.party_id = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.party_id = v; }
                 }
                 "gross_amount" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.gross_amount = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.gross_amount = v; }
                 }
                 "fee_amount" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.fee_amount = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.fee_amount = v; }
                 }
                 "net_amount" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.net_amount = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.net_amount = v; }
                 }
                 "currency" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.currency = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.currency = v; }
                 }
                 "status" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.status = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.status = v; }
                 }
                 "posting_state" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.posting_state = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.posting_state = v; }
                 }
                 "payment_entry_id" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.payment_entry_id = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.payment_entry_id = v; }
                 }
                 "fee_post_id" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.fee_post_id = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.fee_post_id = v; }
                 }
                 "settled_at" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.settled_at = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.settled_at = v; }
                 }
                 "reference_no" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.reference_no = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.reference_no = v; }
                 }
                 "raw_payload" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.raw_payload = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.raw_payload = v; }
                 }
                 _ => {} // ignore unknown fields
             }
@@ -394,20 +333,11 @@ impl backbone_orm::EntityRepoMeta for GatewayTransaction {
         m.insert("party_id".to_string(), "uuid".to_string());
         m.insert("payment_entry_id".to_string(), "uuid".to_string());
         m.insert("fee_post_id".to_string(), "uuid".to_string());
-        m.insert(
-            "provider_code".to_string(),
-            "gateway_provider_code".to_string(),
-        );
+        m.insert("provider_code".to_string(), "gateway_provider_code".to_string());
         m.insert("direction".to_string(), "gateway_direction".to_string());
         m.insert("party_type".to_string(), "gateway_party_type".to_string());
-        m.insert(
-            "status".to_string(),
-            "gateway_transaction_status".to_string(),
-        );
-        m.insert(
-            "posting_state".to_string(),
-            "gateway_posting_state".to_string(),
-        );
+        m.insert("status".to_string(), "gateway_transaction_status".to_string());
+        m.insert("posting_state".to_string(), "gateway_posting_state".to_string());
         m
     }
     fn search_fields() -> &'static [&'static str] {
@@ -557,24 +487,12 @@ impl GatewayTransactionBuilder {
     ///
     /// Returns Err if any required field without a default is missing.
     pub fn build(self) -> Result<GatewayTransaction, String> {
-        let company_id = self
-            .company_id
-            .ok_or_else(|| "company_id is required".to_string())?;
-        let provider_id = self
-            .provider_id
-            .ok_or_else(|| "provider_id is required".to_string())?;
-        let provider_code = self
-            .provider_code
-            .ok_or_else(|| "provider_code is required".to_string())?;
-        let provider_transaction_id = self
-            .provider_transaction_id
-            .ok_or_else(|| "provider_transaction_id is required".to_string())?;
-        let gross_amount = self
-            .gross_amount
-            .ok_or_else(|| "gross_amount is required".to_string())?;
-        let net_amount = self
-            .net_amount
-            .ok_or_else(|| "net_amount is required".to_string())?;
+        let company_id = self.company_id.ok_or_else(|| "company_id is required".to_string())?;
+        let provider_id = self.provider_id.ok_or_else(|| "provider_id is required".to_string())?;
+        let provider_code = self.provider_code.ok_or_else(|| "provider_code is required".to_string())?;
+        let provider_transaction_id = self.provider_transaction_id.ok_or_else(|| "provider_transaction_id is required".to_string())?;
+        let gross_amount = self.gross_amount.ok_or_else(|| "gross_amount is required".to_string())?;
+        let net_amount = self.net_amount.ok_or_else(|| "net_amount is required".to_string())?;
 
         Ok(GatewayTransaction {
             id: Uuid::new_v4(),

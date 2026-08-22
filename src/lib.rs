@@ -18,12 +18,12 @@
 #![allow(unused_imports)]
 
 // Generated modules
-pub mod application;
 pub mod domain;
-pub mod exports;
 pub mod infrastructure;
+pub mod application;
 pub mod presentation;
 pub mod seeders;
+pub mod exports;
 
 // Re-exports for convenience - Domain entities
 pub use domain::entity::*;
@@ -35,9 +35,9 @@ pub use infrastructure::persistence::*;
 pub use application::service::GatewayTransactionService;
 pub use application::service::PaymentGatewayProviderService;
 
+use std::sync::Arc;
 use axum::Router;
 use sqlx::PgPool;
-use std::sync::Arc;
 
 // <<< CUSTOM
 #[cfg(feature = "codecs")]
@@ -47,6 +47,7 @@ use application::service::{
 use application::service::{GatewayEventSink, GatewayWriteService, GlPostSink, LoggingGatewaySink};
 use presentation::http::{create_gateway_webhook_routes, WebhookState};
 // END CUSTOM
+
 /// PaymentGateway module configuration
 ///
 /// Use the builder pattern to configure and register this module:
@@ -91,16 +92,13 @@ impl PaymentGatewayModule {
     /// real deployment; use this only in trusted/admin/seeding contexts.
     pub fn all_crud_routes(&self) -> Router {
         use presentation::http::{
-            create_gateway_transaction_routes, create_payment_gateway_provider_routes,
+            create_gateway_transaction_routes,
+            create_payment_gateway_provider_routes,
         };
 
         Router::new()
-            .merge(create_gateway_transaction_routes(
-                self.gateway_transaction_service.clone(),
-            ))
-            .merge(create_payment_gateway_provider_routes(
-                self.payment_gateway_provider_service.clone(),
-            ))
+            .merge(create_gateway_transaction_routes(self.gateway_transaction_service.clone()))
+            .merge(create_payment_gateway_provider_routes(self.payment_gateway_provider_service.clone()))
     }
 
     /// Deprecated alias for [`Self::all_crud_routes`]. `routes()` reads like
@@ -108,9 +106,7 @@ impl PaymentGatewayModule {
     /// mount exposes unguarded writes. Compose a guarded router (read + validated
     /// writes) for production, or call `all_crud_routes()` to opt into the full
     /// unguarded surface explicitly.
-    #[deprecated(
-        note = "mounts unvalidated generic CRUD; prefer readonly_routes() + validated writes, or all_crud_routes() for the full/unguarded surface"
-    )]
+    #[deprecated(note = "mounts unvalidated generic CRUD; prefer readonly_routes() + validated writes, or all_crud_routes() for the full/unguarded surface")]
     pub fn routes(&self) -> Router {
         self.all_crud_routes()
     }
@@ -122,16 +118,13 @@ impl PaymentGatewayModule {
     /// merge validated write routes (or a write service's HTTP layer) onto it.
     pub fn readonly_routes(&self) -> Router {
         use presentation::http::{
-            create_gateway_transaction_read_routes, create_payment_gateway_provider_read_routes,
+            create_gateway_transaction_read_routes,
+            create_payment_gateway_provider_read_routes,
         };
 
         Router::new()
-            .merge(create_gateway_transaction_read_routes(
-                self.gateway_transaction_service.clone(),
-            ))
-            .merge(create_payment_gateway_provider_read_routes(
-                self.payment_gateway_provider_service.clone(),
-            ))
+            .merge(create_gateway_transaction_read_routes(self.gateway_transaction_service.clone()))
+            .merge(create_payment_gateway_provider_read_routes(self.payment_gateway_provider_service.clone()))
     }
 
     // <<< CUSTOM METHODS
@@ -256,24 +249,16 @@ impl PaymentGatewayModuleBuilder {
 
     /// Build the module with configured dependencies
     pub fn build(self) -> anyhow::Result<PaymentGatewayModule> {
-        let db_pool = self
-            .db_pool
+        let db_pool = self.db_pool
             .ok_or_else(|| anyhow::anyhow!("Database pool not configured"))?;
 
         // GatewayTransaction service
-        let gateway_transaction_repository =
-            Arc::new(GatewayTransactionRepository::new(db_pool.clone()));
-        let gateway_transaction_service = Arc::new(GatewayTransactionService::with_repository(
-            gateway_transaction_repository.clone(),
-        ));
+        let gateway_transaction_repository = Arc::new(GatewayTransactionRepository::new(db_pool.clone()));
+        let gateway_transaction_service = Arc::new(GatewayTransactionService::with_repository(gateway_transaction_repository.clone()));
 
         // PaymentGatewayProvider service
-        let payment_gateway_provider_repository =
-            Arc::new(PaymentGatewayProviderRepository::new(db_pool.clone()));
-        let payment_gateway_provider_service =
-            Arc::new(PaymentGatewayProviderService::with_repository(
-                payment_gateway_provider_repository.clone(),
-            ));
+        let payment_gateway_provider_repository = Arc::new(PaymentGatewayProviderRepository::new(db_pool.clone()));
+        let payment_gateway_provider_service = Arc::new(PaymentGatewayProviderService::with_repository(payment_gateway_provider_repository.clone()));
 
         // <<< CUSTOM
         // The settlement engine: defaults to a logging event sink when composition

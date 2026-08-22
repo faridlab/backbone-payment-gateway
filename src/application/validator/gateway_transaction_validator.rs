@@ -5,9 +5,9 @@
 //! Returns an `EntityValidator<GatewayTransaction>` pre-loaded with schema-derived
 //! field rules. Extend in the `// <<< CUSTOM` zone.
 
-use crate::domain::entity::GatewayTransaction;
-use backbone_core::{EntityValidator, ValidationError, ValidationErrors};
+use backbone_core::{EntityValidator, ValidationErrors, ValidationError};
 use backbone_core::{NonNegative, OptionalNotBlank, RequiredString};
+use crate::domain::entity::GatewayTransaction;
 
 /// Validator type alias for GatewayTransaction entities.
 pub type GatewayTransactionValidator = EntityValidator<GatewayTransaction>;
@@ -15,17 +15,9 @@ pub type GatewayTransactionValidator = EntityValidator<GatewayTransaction>;
 /// Build a validator for GatewayTransaction with all schema-defined field rules.
 pub fn gateway_transaction_validator() -> GatewayTransactionValidator {
     EntityValidator::new()
-        .rule(RequiredString::new(
-            "provider_transaction_id",
-            |e: &GatewayTransaction| &e.provider_transaction_id,
-        ))
-        .rule(RequiredString::new("currency", |e: &GatewayTransaction| {
-            &e.currency
-        }))
-        .rule(OptionalNotBlank::new(
-            "reference_no",
-            |e: &GatewayTransaction| e.reference_no.as_deref(),
-        ))
+        .rule(RequiredString::new("provider_transaction_id", |e: &GatewayTransaction| &e.provider_transaction_id))
+        .rule(RequiredString::new("currency", |e: &GatewayTransaction| &e.currency))
+        .rule(OptionalNotBlank::new("reference_no", |e: &GatewayTransaction| e.reference_no.as_deref()))
     // <<< CUSTOM RULES
     // END CUSTOM RULES
 }

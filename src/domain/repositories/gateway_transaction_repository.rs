@@ -5,14 +5,11 @@
 //! This trait defines the repository contract for the GatewayTransaction aggregate.
 //! Implementation is in the infrastructure layer.
 
-use anyhow::Result;
 use async_trait::async_trait;
+use anyhow::Result;
 use uuid::Uuid;
 
-use crate::domain::entity::{
-    GatewayDirection, GatewayPartyType, GatewayPostingState, GatewayProviderCode,
-    GatewayTransaction, GatewayTransactionStatus,
-};
+use crate::domain::entity::{GatewayTransaction, GatewayDirection, GatewayPartyType, GatewayPostingState, GatewayProviderCode, GatewayTransactionStatus};
 
 /// Pagination parameters for list queries
 #[derive(Debug, Clone, Default)]
@@ -65,19 +62,7 @@ pub struct GatewayTransactionFilter {
 impl GatewayTransactionFilter {
     /// Check if any filter is set
     pub fn has_filters(&self) -> bool {
-        self.company_id.is_some()
-            || self.provider_id.is_some()
-            || self.provider_code.is_some()
-            || self.provider_transaction_id.is_some()
-            || self.direction.is_some()
-            || self.party_type.is_some()
-            || self.party_id.is_some()
-            || self.currency.is_some()
-            || self.status.is_some()
-            || self.posting_state.is_some()
-            || self.payment_entry_id.is_some()
-            || self.fee_post_id.is_some()
-            || self.reference_no.is_some()
+        self.company_id.is_some() || self.provider_id.is_some() || self.provider_code.is_some() || self.provider_transaction_id.is_some() || self.direction.is_some() || self.party_type.is_some() || self.party_id.is_some() || self.currency.is_some() || self.status.is_some() || self.posting_state.is_some() || self.payment_entry_id.is_some() || self.fee_post_id.is_some() || self.reference_no.is_some()
     }
 }
 
@@ -87,6 +72,7 @@ impl GatewayTransactionFilter {
 /// Implementations should be in the infrastructure layer.
 #[async_trait]
 pub trait GatewayTransactionRepository: Send + Sync {
+
     // =========================================================================
     // Core CRUD Operations
     // =========================================================================
@@ -101,11 +87,7 @@ pub trait GatewayTransactionRepository: Send + Sync {
     async fn find_all(&self) -> Result<Vec<GatewayTransaction>>;
 
     /// Update gateway_transaction by ID
-    async fn update(
-        &self,
-        id: &str,
-        entity: &GatewayTransaction,
-    ) -> Result<Option<GatewayTransaction>>;
+    async fn update(&self, id: &str, entity: &GatewayTransaction) -> Result<Option<GatewayTransaction>>;
 
     /// Delete gateway_transaction by ID
     async fn delete(&self, id: &str) -> Result<bool>;
@@ -115,17 +97,10 @@ pub trait GatewayTransactionRepository: Send + Sync {
     // =========================================================================
 
     /// List gateway_transaction with pagination
-    async fn list(
-        &self,
-        params: GatewayTransactionPaginationParams,
-    ) -> Result<GatewayTransactionPaginatedResult>;
+    async fn list(&self, params: GatewayTransactionPaginationParams) -> Result<GatewayTransactionPaginatedResult>;
 
     /// List gateway_transaction with pagination and filters
-    async fn list_with_filters(
-        &self,
-        params: GatewayTransactionPaginationParams,
-        filters: GatewayTransactionFilter,
-    ) -> Result<GatewayTransactionPaginatedResult>;
+    async fn list_with_filters(&self, params: GatewayTransactionPaginationParams, filters: GatewayTransactionFilter) -> Result<GatewayTransactionPaginatedResult>;
 
     /// Count all gateway_transaction entities
     async fn count(&self) -> Result<u64>;
@@ -147,10 +122,7 @@ pub trait GatewayTransactionRepository: Send + Sync {
     async fn restore(&self, id: &str) -> Result<Option<GatewayTransaction>>;
 
     /// List soft-deleted gateway_transaction entities
-    async fn list_deleted(
-        &self,
-        params: GatewayTransactionPaginationParams,
-    ) -> Result<GatewayTransactionPaginatedResult>;
+    async fn list_deleted(&self, params: GatewayTransactionPaginationParams) -> Result<GatewayTransactionPaginatedResult>;
 
     /// Empty trash (permanently delete all soft-deleted entities)
     async fn empty_trash(&self) -> Result<u64>;

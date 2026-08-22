@@ -5,11 +5,11 @@
 //! These DTOs are the ONLY types other modules should use.
 //! They are decoupled from internal domain entities.
 
-use crate::domain::entity::*;
-use chrono::{DateTime, Utc};
-use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+use chrono::{DateTime, Utc};
+use rust_decimal::Decimal;
+use crate::domain::entity::*;
 
 // ============================================================================
 // GATEWAYTRANSACTION TYPES
@@ -127,6 +127,7 @@ pub struct PaymentGatewayProviderDto {
     pub credentials_ref: Option<String>,
     pub fee_account_id: Option<Uuid>,
     pub settlement_account_id: Option<Uuid>,
+    pub clearing_account_id: Option<Uuid>,
     pub status: ProviderStatus,
     pub metadata: serde_json::Value,
 }

@@ -5,8 +5,8 @@
 //! `DomainPolicy` enforces pure business invariants (state-based rules).
 //! Identity-based rules live in `backbone_auth::ResourcePolicy`.
 
-use crate::domain::entity::GatewayTransaction;
 use backbone_core::PermitAllPolicy;
+use crate::domain::entity::GatewayTransaction;
 
 /// Domain policy for GatewayTransaction — permits all operations (no business invariants).
 ///

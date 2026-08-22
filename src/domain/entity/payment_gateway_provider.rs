@@ -3,9 +3,9 @@ use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
 
-use super::AuditMetadata;
 use super::GatewayProviderCode;
 use super::ProviderStatus;
+use super::AuditMetadata;
 
 /// Strongly-typed ID for PaymentGatewayProvider
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -13,15 +13,9 @@ use super::ProviderStatus;
 pub struct PaymentGatewayProviderId(pub Uuid);
 
 impl PaymentGatewayProviderId {
-    pub fn new(id: Uuid) -> Self {
-        Self(id)
-    }
-    pub fn generate() -> Self {
-        Self(Uuid::new_v4())
-    }
-    pub fn into_inner(self) -> Uuid {
-        self.0
-    }
+    pub fn new(id: Uuid) -> Self { Self(id) }
+    pub fn generate() -> Self { Self(Uuid::new_v4()) }
+    pub fn into_inner(self) -> Uuid { self.0 }
 }
 
 impl std::fmt::Display for PaymentGatewayProviderId {
@@ -38,28 +32,20 @@ impl std::str::FromStr for PaymentGatewayProviderId {
 }
 
 impl From<Uuid> for PaymentGatewayProviderId {
-    fn from(id: Uuid) -> Self {
-        Self(id)
-    }
+    fn from(id: Uuid) -> Self { Self(id) }
 }
 
 impl From<PaymentGatewayProviderId> for Uuid {
-    fn from(id: PaymentGatewayProviderId) -> Self {
-        id.0
-    }
+    fn from(id: PaymentGatewayProviderId) -> Self { id.0 }
 }
 
 impl AsRef<Uuid> for PaymentGatewayProviderId {
-    fn as_ref(&self) -> &Uuid {
-        &self.0
-    }
+    fn as_ref(&self) -> &Uuid { &self.0 }
 }
 
 impl std::ops::Deref for PaymentGatewayProviderId {
     type Target = Uuid;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
+    fn deref(&self) -> &Self::Target { &self.0 }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
@@ -71,6 +57,7 @@ pub struct PaymentGatewayProvider {
     pub credentials_ref: Option<String>,
     pub fee_account_id: Option<Uuid>,
     pub settlement_account_id: Option<Uuid>,
+    pub clearing_account_id: Option<Uuid>,
     pub status: ProviderStatus,
     #[serde(default)]
     #[sqlx(json)]
@@ -84,12 +71,7 @@ impl PaymentGatewayProvider {
     }
 
     /// Create a new PaymentGatewayProvider with required fields
-    pub fn new(
-        code: GatewayProviderCode,
-        company_id: Uuid,
-        display_name: String,
-        status: ProviderStatus,
-    ) -> Self {
+    pub fn new(code: GatewayProviderCode, company_id: Uuid, display_name: String, status: ProviderStatus) -> Self {
         Self {
             id: Uuid::new_v4(),
             code,
@@ -98,6 +80,7 @@ impl PaymentGatewayProvider {
             credentials_ref: None,
             fee_account_id: None,
             settlement_account_id: None,
+            clearing_account_id: None,
             status,
             metadata: AuditMetadata::default(),
         }
@@ -158,6 +141,7 @@ impl PaymentGatewayProvider {
         &self.status
     }
 
+
     // ==========================================================
     // Fluent Setters (with_* for optional fields)
     // ==========================================================
@@ -180,6 +164,12 @@ impl PaymentGatewayProvider {
         self
     }
 
+    /// Set the clearing_account_id field (chainable)
+    pub fn with_clearing_account_id(mut self, value: Uuid) -> Self {
+        self.clearing_account_id = Some(value);
+        self
+    }
+
     // ==========================================================
     // Partial Update
     // ==========================================================
@@ -189,39 +179,28 @@ impl PaymentGatewayProvider {
         for (key, value) in fields {
             match key.as_str() {
                 "code" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.code = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.code = v; }
                 }
                 "company_id" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.company_id = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.company_id = v; }
                 }
                 "display_name" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.display_name = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.display_name = v; }
                 }
                 "credentials_ref" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.credentials_ref = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.credentials_ref = v; }
                 }
                 "fee_account_id" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.fee_account_id = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.fee_account_id = v; }
                 }
                 "settlement_account_id" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.settlement_account_id = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.settlement_account_id = v; }
+                }
+                "clearing_account_id" => {
+                    if let Ok(v) = serde_json::from_value(value) { self.clearing_account_id = v; }
                 }
                 "status" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.status = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.status = v; }
                 }
                 _ => {} // ignore unknown fields
             }
@@ -280,6 +259,7 @@ impl backbone_orm::EntityRepoMeta for PaymentGatewayProvider {
         m.insert("company_id".to_string(), "uuid".to_string());
         m.insert("fee_account_id".to_string(), "uuid".to_string());
         m.insert("settlement_account_id".to_string(), "uuid".to_string());
+        m.insert("clearing_account_id".to_string(), "uuid".to_string());
         m.insert("code".to_string(), "gateway_provider_code".to_string());
         m.insert("status".to_string(), "provider_status".to_string());
         m
@@ -304,6 +284,7 @@ pub struct PaymentGatewayProviderBuilder {
     credentials_ref: Option<String>,
     fee_account_id: Option<Uuid>,
     settlement_account_id: Option<Uuid>,
+    clearing_account_id: Option<Uuid>,
     status: Option<ProviderStatus>,
 }
 
@@ -344,6 +325,12 @@ impl PaymentGatewayProviderBuilder {
         self
     }
 
+    /// Set the clearing_account_id field (optional)
+    pub fn clearing_account_id(mut self, value: Uuid) -> Self {
+        self.clearing_account_id = Some(value);
+        self
+    }
+
     /// Set the status field (default: `ProviderStatus::default()`)
     pub fn status(mut self, value: ProviderStatus) -> Self {
         self.status = Some(value);
@@ -355,12 +342,8 @@ impl PaymentGatewayProviderBuilder {
     /// Returns Err if any required field without a default is missing.
     pub fn build(self) -> Result<PaymentGatewayProvider, String> {
         let code = self.code.ok_or_else(|| "code is required".to_string())?;
-        let company_id = self
-            .company_id
-            .ok_or_else(|| "company_id is required".to_string())?;
-        let display_name = self
-            .display_name
-            .ok_or_else(|| "display_name is required".to_string())?;
+        let company_id = self.company_id.ok_or_else(|| "company_id is required".to_string())?;
+        let display_name = self.display_name.ok_or_else(|| "display_name is required".to_string())?;
 
         Ok(PaymentGatewayProvider {
             id: Uuid::new_v4(),
@@ -370,6 +353,7 @@ impl PaymentGatewayProviderBuilder {
             credentials_ref: self.credentials_ref,
             fee_account_id: self.fee_account_id,
             settlement_account_id: self.settlement_account_id,
+            clearing_account_id: self.clearing_account_id,
             status: self.status.unwrap_or_default(),
             metadata: AuditMetadata::default(),
         })

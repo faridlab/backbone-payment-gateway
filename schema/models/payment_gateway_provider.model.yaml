@@ -52,6 +52,11 @@ models:
         attributes: ["@exclude_from_foreign_key_check"]
         description: "Bank/Cash account net funds land in # logical FK to accounting.Account.id"
 
+      clearing_account_id:
+        type: uuid?
+        attributes: ["@exclude_from_foreign_key_check"]
+        description: "Interim account party-less receipts credit until the operator allocates them (A/R control lines demand a party) # logical FK to accounting.Account.id"
+
       # replaces is_active (boolean flipped to lifecycle enum)
       status:
         type: ProviderStatus

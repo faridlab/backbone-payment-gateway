@@ -7,9 +7,9 @@
 
 use backbone_core::GenericCrudService;
 
+use crate::presentation::dto::{CreateGatewayTransactionDto, UpdateGatewayTransactionDto};
 use crate::domain::entity::GatewayTransaction;
 use crate::infrastructure::persistence::GatewayTransactionRepository;
-use crate::presentation::dto::{CreateGatewayTransactionDto, UpdateGatewayTransactionDto};
 
 /// Application service for GatewayTransaction entities.
 ///

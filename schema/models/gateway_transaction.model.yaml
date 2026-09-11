@@ -24,11 +24,6 @@ models:
         attributes: ["@id", "@default(uuid)"]
         description: "Unique gateway-transaction id"
 
-      company_id:
-        type: uuid
-        attributes: ["@required", "@exclude_from_foreign_key_check"]
-        description: "Books owner # logical FK to organization.Company.id — denormalized so the table carries its own FORCE RLS fence (ADR-003, mirroring payment ADR-0010)"
-
       provider_id:
         type: uuid
         attributes: ["@required", "@foreign_key(PaymentGatewayProvider.id)"]
@@ -121,8 +116,10 @@ models:
         fields: [provider_code, provider_transaction_id]
         where: "deleted_at IS NULL"
         description: "THE dedup key — one GatewayTransaction per provider transaction"
-      - type: index
-        fields: [company_id, status]
+      # No tenancy indexes (ADR-0029): the module is tenant-agnostic. The former
+      # (company_id, status) listing index carried no domain grain of its own —
+      # reads are by dedup key, by id, or by the org fence the composing
+      # service's decorator installs.
       - type: index
         fields: [payment_entry_id]
 

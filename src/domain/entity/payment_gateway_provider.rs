@@ -52,7 +52,6 @@ impl std::ops::Deref for PaymentGatewayProviderId {
 pub struct PaymentGatewayProvider {
     pub id: Uuid,
     pub code: GatewayProviderCode,
-    pub company_id: Uuid,
     pub display_name: String,
     pub credentials_ref: Option<String>,
     pub fee_account_id: Option<Uuid>,
@@ -71,11 +70,10 @@ impl PaymentGatewayProvider {
     }
 
     /// Create a new PaymentGatewayProvider with required fields
-    pub fn new(code: GatewayProviderCode, company_id: Uuid, display_name: String, status: ProviderStatus) -> Self {
+    pub fn new(code: GatewayProviderCode, display_name: String, status: ProviderStatus) -> Self {
         Self {
             id: Uuid::new_v4(),
             code,
-            company_id,
             display_name,
             credentials_ref: None,
             fee_account_id: None,
@@ -181,9 +179,6 @@ impl PaymentGatewayProvider {
                 "code" => {
                     if let Ok(v) = serde_json::from_value(value) { self.code = v; }
                 }
-                "company_id" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.company_id = v; }
-                }
                 "display_name" => {
                     if let Ok(v) = serde_json::from_value(value) { self.display_name = v; }
                 }
@@ -256,7 +251,6 @@ impl backbone_orm::EntityRepoMeta for PaymentGatewayProvider {
     fn column_types() -> std::collections::HashMap<String, String> {
         let mut m = std::collections::HashMap::new();
         m.insert("id".to_string(), "uuid".to_string());
-        m.insert("company_id".to_string(), "uuid".to_string());
         m.insert("fee_account_id".to_string(), "uuid".to_string());
         m.insert("settlement_account_id".to_string(), "uuid".to_string());
         m.insert("clearing_account_id".to_string(), "uuid".to_string());
@@ -267,9 +261,6 @@ impl backbone_orm::EntityRepoMeta for PaymentGatewayProvider {
     fn search_fields() -> &'static [&'static str] {
         &["display_name"]
     }
-    fn company_field() -> Option<&'static str> {
-        Some("company_id")
-    }
 }
 
 /// Builder for PaymentGatewayProvider entity
@@ -279,7 +270,6 @@ impl backbone_orm::EntityRepoMeta for PaymentGatewayProvider {
 #[derive(Debug, Clone, Default)]
 pub struct PaymentGatewayProviderBuilder {
     code: Option<GatewayProviderCode>,
-    company_id: Option<Uuid>,
     display_name: Option<String>,
     credentials_ref: Option<String>,
     fee_account_id: Option<Uuid>,
@@ -292,12 +282,6 @@ impl PaymentGatewayProviderBuilder {
     /// Set the code field (required)
     pub fn code(mut self, value: GatewayProviderCode) -> Self {
         self.code = Some(value);
-        self
-    }
-
-    /// Set the company_id field (required)
-    pub fn company_id(mut self, value: Uuid) -> Self {
-        self.company_id = Some(value);
         self
     }
 
@@ -342,13 +326,11 @@ impl PaymentGatewayProviderBuilder {
     /// Returns Err if any required field without a default is missing.
     pub fn build(self) -> Result<PaymentGatewayProvider, String> {
         let code = self.code.ok_or_else(|| "code is required".to_string())?;
-        let company_id = self.company_id.ok_or_else(|| "company_id is required".to_string())?;
         let display_name = self.display_name.ok_or_else(|| "display_name is required".to_string())?;
 
         Ok(PaymentGatewayProvider {
             id: Uuid::new_v4(),
             code,
-            company_id,
             display_name,
             credentials_ref: self.credentials_ref,
             fee_account_id: self.fee_account_id,

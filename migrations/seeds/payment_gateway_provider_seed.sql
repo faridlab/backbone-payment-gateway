@@ -7,7 +7,6 @@
 -- INSERT INTO payment_gateway.payment_gateway_providers (
 --     id,
 --     code,
---     company_id,
 --     display_name,
 --     credentials_ref,
 --     fee_account_id,

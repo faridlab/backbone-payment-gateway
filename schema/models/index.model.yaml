@@ -15,9 +15,11 @@ version: 2
 schema: payment_gateway
 description: "payment_gateway domain module — external payment-gateway boundary"
 
-# ADR-0014 company fence: every entity here (providers, gateway transactions) is
-# company-scoped and fenced strict. No exceptions.
-company_fence: strict
+# Tenancy: none, by design (ADR-0029). The module is tenant-agnostic — it ships
+# no scoping column and no fence declaration. A composing backend-service that
+# wants these tables org-scoped declares them in its tenancy.yaml; the decorator
+# installs org_unit_id, the RLS policy, and the org-scoped per-unit provider-code
+# unique (one live provider config per code per org unit) at composition time.
 
 config:
   database: postgresql

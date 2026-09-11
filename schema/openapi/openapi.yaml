@@ -755,7 +755,6 @@ components:
       type: object
       required:
         - id
-        - company_id
         - provider_id
         - provider_code
         - provider_transaction_id
@@ -769,9 +768,6 @@ components:
         - metadata
       properties:
         id:
-          type: string
-          format: uuid
-        company_id:
           type: string
           format: uuid
         provider_id:
@@ -842,7 +838,6 @@ components:
     CreateGatewayTransactionRequest:
       type: object
       required:
-        - company_id
         - provider_id
         - provider_code
         - provider_transaction_id
@@ -855,9 +850,6 @@ components:
         - posting_state
         - metadata
       properties:
-        company_id:
-          type: string
-          format: uuid
         provider_id:
           type: string
           format: uuid
@@ -913,7 +905,6 @@ components:
     UpdateGatewayTransactionRequest:
       type: object
       required:
-        - company_id
         - provider_id
         - provider_code
         - provider_transaction_id
@@ -926,9 +917,6 @@ components:
         - posting_state
         - metadata
       properties:
-        company_id:
-          type: string
-          format: uuid
         provider_id:
           type: string
           format: uuid
@@ -984,9 +972,6 @@ components:
     PatchGatewayTransactionRequest:
       type: object
       properties:
-        company_id:
-          type: string
-          format: uuid
         provider_id:
           type: string
           format: uuid
@@ -1054,7 +1039,6 @@ components:
       required:
         - id
         - code
-        - company_id
         - display_name
         - status
         - metadata
@@ -1064,9 +1048,6 @@ components:
           format: uuid
         code:
           type: string
-        company_id:
-          type: string
-          format: uuid
         display_name:
           type: string
           maxLength: 120
@@ -1108,16 +1089,12 @@ components:
       type: object
       required:
         - code
-        - company_id
         - display_name
         - status
         - metadata
       properties:
         code:
           type: string
-        company_id:
-          type: string
-          format: uuid
         display_name:
           type: string
           maxLength: 120
@@ -1146,16 +1123,12 @@ components:
       type: object
       required:
         - code
-        - company_id
         - display_name
         - status
         - metadata
       properties:
         code:
           type: string
-        company_id:
-          type: string
-          format: uuid
         display_name:
           type: string
           maxLength: 120
@@ -1185,9 +1158,6 @@ components:
       properties:
         code:
           type: string
-        company_id:
-          type: string
-          format: uuid
         display_name:
           type: string
           maxLength: 120

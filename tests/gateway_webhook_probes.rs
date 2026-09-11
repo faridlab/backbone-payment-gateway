@@ -36,22 +36,16 @@ async fn pool() -> PgPool {
 const META: &str = r#"{"created_at":null,"updated_at":null,"deleted_at":null,"created_by":null,"updated_by":null,"deleted_by":null}"#;
 
 /// Insert a configured provider + a pending gateway transaction; return both ids.
-async fn seed_pending(
-    pool: &PgPool,
-    company: Uuid,
-    gross: Decimal,
-    fee: Decimal,
-) -> (Uuid, Uuid) {
+async fn seed_pending(pool: &PgPool, gross: Decimal, fee: Decimal) -> (Uuid, Uuid) {
     let provider = Uuid::new_v4();
     let fee_acc = Uuid::new_v4();
     let bank_acc = Uuid::new_v4();
     sqlx::query(
         r#"INSERT INTO payment_gateway.payment_gateway_providers
-             (id, code, company_id, display_name, fee_account_id, settlement_account_id, status, metadata)
-           VALUES ($1, 'midtrans'::gateway_provider_code, $2, $3, $4, $5, 'active', $6::jsonb)"#,
+             (id, code, display_name, fee_account_id, settlement_account_id, status, metadata)
+           VALUES ($1, 'midtrans'::gateway_provider_code, $2, $3, $4, 'active', $5::jsonb)"#,
     )
     .bind(provider)
-    .bind(company)
     .bind(uq("Midtrans"))
     .bind(fee_acc)
     .bind(bank_acc)
@@ -63,14 +57,13 @@ async fn seed_pending(
     let txn = Uuid::new_v4();
     sqlx::query(
         r#"INSERT INTO payment_gateway.gateway_transactions
-             (id, company_id, provider_id, provider_code, provider_transaction_id, direction,
+             (id, provider_id, provider_code, provider_transaction_id, direction,
               gross_amount, fee_amount, net_amount, currency, status, posting_state, metadata)
-           VALUES ($1, $2, $3, 'midtrans'::gateway_provider_code, $4, 'receive'::gateway_direction,
-                   $5, $6, $7, 'IDR', 'pending'::gateway_transaction_status,
-                   'pending'::gateway_posting_state, $8::jsonb)"#,
+           VALUES ($1, $2, 'midtrans'::gateway_provider_code, $3, 'receive'::gateway_direction,
+                   $4, $5, $6, 'IDR', 'pending'::gateway_transaction_status,
+                   'pending'::gateway_posting_state, $7::jsonb)"#,
     )
     .bind(txn)
-    .bind(company)
     .bind(provider)
     .bind(uq("MID-ORDER"))
     .bind(gross)
@@ -110,8 +103,7 @@ impl GatewayEventSink for Recorder {
 #[tokio::test]
 async fn gwp1_settle_posts_fee_once_and_emits_once() {
     let pool = pool().await;
-    let company = Uuid::new_v4();
-    let (_provider, txn) = seed_pending(&pool, company, d("1000000"), d("30000")).await;
+    let (_provider, txn) = seed_pending(&pool, d("1000000"), d("30000")).await;
 
     let svc = GatewayWriteService::with_sink(pool.clone(), Arc::new(Recorder::default()));
     let fee = OkFee {
@@ -130,8 +122,7 @@ async fn gwp1_settle_posts_fee_once_and_emits_once() {
 #[tokio::test]
 async fn gwp2_redelivered_webhook_is_a_noop() {
     let pool = pool().await;
-    let company = Uuid::new_v4();
-    let (_provider, txn) = seed_pending(&pool, company, d("1000000"), d("30000")).await;
+    let (_provider, txn) = seed_pending(&pool, d("1000000"), d("30000")).await;
 
     let recorder = Arc::new(Recorder::default());
     let svc = GatewayWriteService::with_sink(pool.clone(), recorder.clone() as Arc<dyn GatewayEventSink>);
@@ -162,8 +153,7 @@ async fn gwp2_redelivered_webhook_is_a_noop() {
 #[tokio::test]
 async fn gwp3_rejected_fee_marks_failed_and_settles_nothing() {
     let pool = pool().await;
-    let company = Uuid::new_v4();
-    let (_provider, txn) = seed_pending(&pool, company, d("1000000"), d("30000")).await;
+    let (_provider, txn) = seed_pending(&pool, d("1000000"), d("30000")).await;
 
     struct RejectFee;
     #[async_trait::async_trait]
@@ -203,8 +193,7 @@ async fn gwp4_refund_of_pending_returns_invalid_status() {
     // leaves the row untouched. A pending row → status != "settled" → InvalidStatus
     // BEFORE any fee post or transition.
     let pool = pool().await;
-    let company = Uuid::new_v4();
-    let (_provider, txn) = seed_pending(&pool, company, d("1000000"), d("30000")).await;
+    let (_provider, txn) = seed_pending(&pool, d("1000000"), d("30000")).await;
 
     let recorder = Arc::new(Recorder::default());
     let svc = GatewayWriteService::with_sink(pool.clone(), recorder.clone() as Arc<dyn GatewayEventSink>);

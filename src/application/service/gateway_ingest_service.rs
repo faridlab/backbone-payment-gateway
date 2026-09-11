@@ -7,7 +7,7 @@
 //!
 //! 1. **Resolve** the provider config from the webhook URL's provider id via
 //!    `payment_gateway.resolve_webhook_target(uuid)` — a narrow SECURITY
-//!    DEFINER function (the bare route has no company scope; this is the only
+//!    DEFINER function (the bare route has no request scope; this is the only
 //!    privileged read, and it projects no secrets). Unknown or inactive config
 //!    ⇒ refuse.
 //! 2. **Codec lookup + scheme check** — the codec must exist and its
@@ -25,10 +25,13 @@
 //!    authority does not report one; net re-derived), and the authority gross
 //!    must equal the recorded row's gross. Mismatch ⇒ 422, zero writes.
 //!    Not-settled at the authority ⇒ 200 acknowledged-and-ignored.
-//! 6. **Settle** inside `with_company_scope(Some(company_id))` via
-//!    [`GatewayWriteService::settle_by_provider_tx_verified`] — the
+//! 6. **Settle** via [`GatewayWriteService::settle_by_provider_tx_verified`] — the
 //!    transition-CAS exactly-once settle with the money gate re-enforced and
-//!    the raw payload stamped post-verify (first delivery wins).
+//!    the raw payload stamped post-verify (first delivery wins). Tenancy
+//!    (ADR-0029): the module fabricates no scope of its own — every statement
+//!    rides whatever scope the composing service bound (the bare webhook route
+//!    carries no session, so tenant resolution for that route is the
+//!    composition's job).
 //! 7. **Respond** `{settled, already_settled}` — idempotent on redelivery.
 //!
 //! The module ships no HTTP for this; composition mounts the bare route
@@ -41,7 +44,7 @@ use sqlx::PgPool;
 use std::sync::Arc;
 use uuid::Uuid;
 
-use backbone_orm::company_scope;
+use backbone_orm::org_scope;
 
 use super::gateway_codecs::{
     CredentialFetch, CredentialReader, GatewayCodecRegistry, GatewaySecret, NotificationCodec,
@@ -50,11 +53,21 @@ use super::gateway_codecs::{
 use super::gateway_gl::GlPostSink;
 use super::gateway_write_service::{GatewayError, GatewayWriteService};
 
+/// The legacy tenancy twin echo (ADR-0029) — see the persistence layer's helper of
+/// the same name: the ambient org scope's legacy company id when the composing
+/// service bound one, nil otherwise. Feeds only the still-company-keyed
+/// composition ports (credential reads, status re-fetch) during the re-key
+/// transition; nothing here keys a statement on it.
+fn legacy_company_echo() -> Uuid {
+    org_scope::current_org_scope()
+        .and_then(|s| s.legacy_company_id())
+        .unwrap_or(Uuid::nil())
+}
+
 /// The resolved provider config (step 1). `credentials_ref` is a POINTER into
 /// the credential store, never a secret.
 #[derive(Debug, Clone)]
 pub struct WebhookTarget {
-    pub company_id: Uuid,
     pub code: String,
     pub credentials_ref: Option<String>,
     pub status: String,
@@ -170,21 +183,20 @@ impl WebhookIngestService {
 
     /// Resolve the provider config a webhook URL points at (step 1). Narrow,
     /// non-secret, SECURITY DEFINER — the one read a bare route may make
-    /// without a company scope.
+    /// without a request scope.
     pub async fn resolve_target(
         &self,
         provider_id: Uuid,
     ) -> Result<Option<WebhookTarget>, sqlx::Error> {
-        let row = sqlx::query_as::<_, (Uuid, String, Option<String>, String)>(
-            "SELECT company_id, code, credentials_ref, status \
+        let row = sqlx::query_as::<_, (String, Option<String>, String)>(
+            "SELECT code, credentials_ref, status \
              FROM payment_gateway.resolve_webhook_target($1)",
         )
         .bind(provider_id)
         .fetch_optional(&self.db_pool)
         .await?;
         Ok(row.map(
-            |(company_id, code, credentials_ref, status)| WebhookTarget {
-                company_id,
+            |(code, credentials_ref, status)| WebhookTarget {
                 code,
                 credentials_ref,
                 status,
@@ -250,7 +262,7 @@ impl WebhookIngestService {
                 let secret = self
                     .credentials
                     .read_secret(
-                        target.company_id,
+                        legacy_company_echo(),
                         &credentials_ref,
                         super::gateway_codecs::PURPOSE_WEBHOOK_VERIFY,
                     )
@@ -296,7 +308,7 @@ impl WebhookIngestService {
                 // authority. Amounts in the payload are never read for booking.
                 self.refetcher
                     .fetch(
-                        target.company_id,
+                        legacy_company_echo(),
                         &target.code,
                         &notification.provider_transaction_id,
                     )
@@ -320,32 +332,30 @@ impl WebhookIngestService {
             });
         }
 
-        // 5+6. Money-gated, transition-CAS settle inside the resolved company
-        // scope. Money failures surface as AmountMismatch (422, zero writes).
+        // 5+6. Money-gated, transition-CAS settle, riding the ambient scope the
+        // composing service bound (the bare webhook route fabricates none —
+        // ADR-0029). Money failures surface as AmountMismatch (422, zero writes).
         let raw_payload: serde_json::Value =
             serde_json::from_slice(raw).unwrap_or(serde_json::Value::Null);
-        let outcome = company_scope::with_company_scope(Some(target.company_id), async {
-            self.write
-                .settle_by_provider_tx_verified(
-                    target.company_id,
-                    &target.code,
-                    &notification.provider_transaction_id,
-                    authority.gross,
-                    authority.fee,
-                    if raw_payload.is_null() {
-                        None
-                    } else {
-                        Some(raw_payload)
-                    },
-                    &*self.fee_sink,
-                )
-                .await
-        })
-        .await
-        .map_err(|e| match e {
-            GatewayError::InvalidMoney(m) => IngestError::AmountMismatch(m),
-            other => IngestError::Engine(other),
-        })?;
+        let outcome = self
+            .write
+            .settle_by_provider_tx_verified(
+                &target.code,
+                &notification.provider_transaction_id,
+                authority.gross,
+                authority.fee,
+                if raw_payload.is_null() {
+                    None
+                } else {
+                    Some(raw_payload)
+                },
+                &*self.fee_sink,
+            )
+            .await
+            .map_err(|e| match e {
+                GatewayError::InvalidMoney(m) => IngestError::AmountMismatch(m),
+                other => IngestError::Engine(other),
+            })?;
 
         // 7. Respond.
         Ok(IngestOutcome {

@@ -49,7 +49,6 @@ impl From<GatewayTransactionId> for Uuid {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GatewayTransactionDto {
     pub id: GatewayTransactionId,
-    pub company_id: Uuid,
     pub provider_id: Uuid,
     pub provider_code: GatewayProviderCode,
     pub provider_transaction_id: String,
@@ -122,7 +121,6 @@ impl From<PaymentGatewayProviderId> for Uuid {
 pub struct PaymentGatewayProviderDto {
     pub id: PaymentGatewayProviderId,
     pub code: GatewayProviderCode,
-    pub company_id: Uuid,
     pub display_name: String,
     pub credentials_ref: Option<String>,
     pub fee_account_id: Option<Uuid>,

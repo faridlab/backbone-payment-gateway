@@ -80,6 +80,13 @@ pub struct CredentialFetch {
 /// The read port into the composition's credential store (adapter over the
 /// store's `read_secret`; `account_ref` is the provider-config pointer stored
 /// on `PaymentGatewayProvider.credentials_ref`).
+///
+/// `company_id` is the legacy tenancy twin (ADR-0029): this module is
+/// tenant-agnostic and can no longer source a company id from its own tables,
+/// so callers pass the ambient org scope's legacy echo (nil when none is
+/// bound). Implementations that still key the store by company must resolve
+/// the acting tenant from their own request context during the re-key
+/// transition.
 #[async_trait::async_trait]
 pub trait CredentialReader: Send + Sync {
     async fn read_secret(
@@ -116,6 +123,10 @@ pub enum RefetchError {
 /// The re-fetch port: composition implements it with the provider's status API
 /// (Midtrans `GET /v2/{order}/status`, Xendit `GET /v2/invoices/{id}`), reading
 /// its own credentials through [`CredentialReader`].
+///
+/// `company_id` is the legacy tenancy twin (ADR-0029) — same contract as
+/// [`CredentialReader::read_secret`]: the ambient echo, resolved by the
+/// implementation's own request context when it still keys clients by company.
 #[async_trait::async_trait]
 pub trait StatusRefetch: Send + Sync {
     async fn fetch(

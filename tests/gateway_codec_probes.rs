@@ -187,23 +187,16 @@ fn settled_events(rec: &Recorder) -> usize {
 // Seeding + pipeline wiring
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Insert a provider config; return its id. One per (company, code) — the table
-/// enforces that unique.
-async fn seed_provider(
-    pool: &PgPool,
-    company: Uuid,
-    code: &str,
-    credentials_ref: Option<&str>,
-) -> Uuid {
+/// Insert a provider config; return its id.
+async fn seed_provider(pool: &PgPool, code: &str, credentials_ref: Option<&str>) -> Uuid {
     let provider = Uuid::new_v4();
     sqlx::query(
         r#"INSERT INTO payment_gateway.payment_gateway_providers
-             (id, code, company_id, display_name, fee_account_id, settlement_account_id,
+             (id, code, display_name, fee_account_id, settlement_account_id,
               credentials_ref, status, metadata)
-           VALUES ($1, $3::gateway_provider_code, $2, $4, $5, $6, $7, 'active'::provider_status, $8::jsonb)"#,
+           VALUES ($1, $2::gateway_provider_code, $3, $4, $5, $6, 'active'::provider_status, $7::jsonb)"#,
     )
     .bind(provider)
-    .bind(company)
     .bind(code)
     .bind(uq("Provider"))
     .bind(Uuid::new_v4()) // fee_account_id
@@ -219,7 +212,6 @@ async fn seed_provider(
 /// Insert a pending gateway transaction under an existing provider.
 async fn seed_txn(
     pool: &PgPool,
-    company: Uuid,
     provider: Uuid,
     code: &str,
     provider_txn_id: &str,
@@ -229,14 +221,13 @@ async fn seed_txn(
     let txn = Uuid::new_v4();
     sqlx::query(
         r#"INSERT INTO payment_gateway.gateway_transactions
-             (id, company_id, provider_id, provider_code, provider_transaction_id, direction,
+             (id, provider_id, provider_code, provider_transaction_id, direction,
               gross_amount, fee_amount, net_amount, currency, status, posting_state, metadata)
-           VALUES ($1, $2, $3, $5::gateway_provider_code, $4, 'receive'::gateway_direction,
-                   $6, $7, $8, 'IDR', 'pending'::gateway_transaction_status,
-                   'pending'::gateway_posting_state, $9::jsonb)"#,
+           VALUES ($1, $2, $3::gateway_provider_code, $4, 'receive'::gateway_direction,
+                   $5, $6, $7, 'IDR', 'pending'::gateway_transaction_status,
+                   'pending'::gateway_posting_state, $8::jsonb)"#,
     )
     .bind(txn)
-    .bind(company)
     .bind(provider)
     .bind(provider_txn_id)
     .bind(code)
@@ -253,15 +244,14 @@ async fn seed_txn(
 /// Insert a provider config + a pending gateway transaction; return both ids.
 async fn seed_pending(
     pool: &PgPool,
-    company: Uuid,
     code: &str,
     credentials_ref: Option<&str>,
     provider_txn_id: &str,
     gross: Decimal,
     fee: Decimal,
 ) -> (Uuid, Uuid) {
-    let provider = seed_provider(pool, company, code, credentials_ref).await;
-    let txn = seed_txn(pool, company, provider, code, provider_txn_id, gross, fee).await;
+    let provider = seed_provider(pool, code, credentials_ref).await;
+    let txn = seed_txn(pool, provider, code, provider_txn_id, gross, fee).await;
     (provider, txn)
 }
 
@@ -294,24 +284,25 @@ fn make_ingest(
     (svc, calls, recorder)
 }
 
-/// Company-scoped snapshot — the zero-writes proof. Counts this tenant's rows,
-/// settled rows, and stamped rows: any write the pipeline could have made on
-/// this test's behalf lands inside its company. (Scoping is required because
-/// the probe tests run concurrently against one shared DB.)
+/// Test-scoped snapshot — the zero-writes proof. Counts the rows under this
+/// test's seeded provider configs, settled rows, and stamped rows: any write
+/// the pipeline could have made on this test's behalf lands under one of those
+/// configs. (Scoping is required because the probe tests run concurrently
+/// against one shared DB.)
 #[derive(Debug, PartialEq, Clone, Copy)]
 struct Snapshot {
     txns: i64,
     settled: i64,
     stamped: i64,
 }
-async fn snap(pool: &PgPool, company: Uuid) -> Snapshot {
+async fn snap(pool: &PgPool, providers: &[Uuid]) -> Snapshot {
     let (txns, settled, stamped): (i64, i64, i64) = sqlx::query_as(
         "SELECT count(*), \
                 count(*) FILTER (WHERE status = 'settled'), \
                 count(*) FILTER (WHERE raw_payload IS NOT NULL) \
-         FROM payment_gateway.gateway_transactions WHERE company_id = $1",
+         FROM payment_gateway.gateway_transactions WHERE provider_id = ANY($1)",
     )
-    .bind(company)
+    .bind(providers)
     .fetch_one(pool)
     .await
     .unwrap();
@@ -507,11 +498,9 @@ fn pgc0_doku_signature_construction_matches_docs() {
 #[tokio::test]
 async fn pgc1_doku_valid_signature_settles_exactly_once() {
     let pool = pool().await;
-    let company = Uuid::new_v4();
     let txn_id = uq("DOKU-TXN");
     let (provider, txn) = seed_pending(
         &pool,
-        company,
         "doku",
         Some("doku-cred-1"),
         &txn_id,
@@ -580,11 +569,9 @@ async fn pgc1_doku_valid_signature_settles_exactly_once() {
 #[tokio::test]
 async fn pgc2_doku_bad_signature_401_zero_writes() {
     let pool = pool().await;
-    let company = Uuid::new_v4();
     let txn_id = uq("DOKU-TXN");
     let (provider, _txn) = seed_pending(
         &pool,
-        company,
         "doku",
         Some("doku-cred-1"),
         &txn_id,
@@ -599,7 +586,7 @@ async fn pgc2_doku_bad_signature_401_zero_writes() {
         StubRefetch::not_settled(),
     );
 
-    let before = snap(&pool, company).await;
+    let before = snap(&pool, &[provider]).await;
     let body = doku_body(&txn_id, 1000000, "SETTLE");
     let target = target_for("doku", provider);
     // Well-formed 64-hex signature with the wrong bytes.
@@ -629,7 +616,7 @@ async fn pgc2_doku_bad_signature_401_zero_writes() {
 
     // ZERO writes: no state flip, no stamp, no fee post, no event.
     assert_eq!(
-        snap(&pool, company).await,
+        snap(&pool, &[provider]).await,
         before,
         "full-table snapshot must be unchanged"
     );
@@ -640,12 +627,10 @@ async fn pgc2_doku_bad_signature_401_zero_writes() {
 #[tokio::test]
 async fn pgc3_doku_missing_credential_503_fail_closed() {
     let pool = pool().await;
-    let company = Uuid::new_v4();
     let txn_id = uq("DOKU-TXN");
     // Provider config carries NO credentials_ref — nothing to verify with.
     let (provider, _txn) = seed_pending(
         &pool,
-        company,
         "doku",
         None,
         &txn_id,
@@ -657,7 +642,7 @@ async fn pgc3_doku_missing_credential_503_fail_closed() {
     let (svc, calls, recorder) =
         make_ingest(&pool, FakeCreds::failing(), StubRefetch::not_settled());
 
-    let before = snap(&pool, company).await;
+    let before = snap(&pool, &[provider]).await;
     let body = doku_body(&txn_id, 1000000, "SETTLE");
     let target = target_for("doku", provider);
     let headers = doku_headers(
@@ -685,7 +670,7 @@ async fn pgc3_doku_missing_credential_503_fail_closed() {
     assert_eq!(err.code(), "credential_unavailable");
 
     assert_eq!(
-        snap(&pool, company).await,
+        snap(&pool, &[provider]).await,
         before,
         "fail-closed: zero writes without a credential"
     );
@@ -700,13 +685,11 @@ async fn pgc3_doku_missing_credential_503_fail_closed() {
 #[tokio::test]
 async fn pgc4_midtrans_refetch_authoritative_settle() {
     let pool = pool().await;
-    let company = Uuid::new_v4();
     // Rows are keyed by the ORDER id — the id the status API accepts.
     let txn_id = uq("MID-TXN");
     let order_id = uq("MID-ORDER");
     let (provider, txn) = seed_pending(
         &pool,
-        company,
         "midtrans",
         None,
         &order_id,
@@ -766,13 +749,11 @@ async fn pgc4_midtrans_refetch_authoritative_settle() {
 #[tokio::test]
 async fn pgc5_amount_mismatch_422_no_write() {
     let pool = pool().await;
-    let company = Uuid::new_v4();
 
     // (a) HmacRawBody: the VERIFIED body disagrees with the recorded row.
     let doku_txn = uq("DOKU-TXN");
     let (doku_provider, doku_row) = seed_pending(
         &pool,
-        company,
         "doku",
         Some("doku-cred-1"),
         &doku_txn,
@@ -785,7 +766,7 @@ async fn pgc5_amount_mismatch_422_no_write() {
         FakeCreds::with("doku-cred-1", "SK-DOKU-TEST"),
         StubRefetch::not_settled(),
     );
-    let before = snap(&pool, company).await;
+    let before = snap(&pool, &[doku_provider]).await;
 
     let body = doku_body(&doku_txn, 999999, "SETTLE"); // 1 rupiah short of the row
     let target = target_for("doku", doku_provider);
@@ -820,7 +801,7 @@ async fn pgc5_amount_mismatch_422_no_write() {
         "mismatch leaves the row untouched"
     );
     assert_eq!(
-        snap(&pool, company).await,
+        snap(&pool, &[doku_provider]).await,
         before,
         "not even the raw_payload stamp may land on mismatch"
     );
@@ -832,7 +813,6 @@ async fn pgc5_amount_mismatch_422_no_write() {
     let mid_order = uq("MID-ORDER");
     let (mid_provider, mid_row) = seed_pending(
         &pool,
-        company,
         "midtrans",
         None,
         &mid_order,
@@ -845,7 +825,7 @@ async fn pgc5_amount_mismatch_422_no_write() {
         FakeCreds::failing(),
         StubRefetch::settled(d("999999"), None),
     );
-    let before = snap(&pool, company).await;
+    let before = snap(&pool, &[doku_provider, mid_provider]).await;
     let body = midtrans_body(&mid_txn, &mid_order, 1000000, "settlement");
     let target = target_for("midtrans", mid_provider);
     let headers = HeaderMap::new();
@@ -866,7 +846,7 @@ async fn pgc5_amount_mismatch_422_no_write() {
     assert_eq!(err.http_status(), 422, "got {err:?}");
     assert_eq!(err.code(), "amount_mismatch");
     assert_eq!(row_status(&pool, mid_row).await, "pending");
-    assert_eq!(snap(&pool, company).await, before);
+    assert_eq!(snap(&pool, &[doku_provider, mid_provider]).await, before);
     assert_eq!(calls.load(Ordering::SeqCst), 0);
     assert_eq!(settled_events(&recorder), 0);
 }
@@ -874,13 +854,11 @@ async fn pgc5_amount_mismatch_422_no_write() {
 #[tokio::test]
 async fn pgc6_pending_notification_acknowledged_ignored() {
     let pool = pool().await;
-    let company = Uuid::new_v4();
 
     // (a) DOKU: validly signed PENDING — acknowledged, ignored, no write.
     let doku_txn = uq("DOKU-TXN");
     let (doku_provider, doku_row) = seed_pending(
         &pool,
-        company,
         "doku",
         Some("doku-cred-1"),
         &doku_txn,
@@ -929,7 +907,6 @@ async fn pgc6_pending_notification_acknowledged_ignored() {
     let mid_order = uq("MID-ORDER");
     let (mid_provider, mid_row) = seed_pending(
         &pool,
-        company,
         "midtrans",
         None,
         &mid_order,
@@ -969,11 +946,9 @@ async fn pgc6_pending_notification_acknowledged_ignored() {
 #[tokio::test]
 async fn pgc7_redelivery_is_idempotent() {
     let pool = pool().await;
-    let company = Uuid::new_v4();
     let txn_id = uq("DOKU-TXN");
     let (provider, txn) = seed_pending(
         &pool,
-        company,
         "doku",
         Some("doku-cred-1"),
         &txn_id,
@@ -1050,12 +1025,10 @@ async fn pgc7_redelivery_is_idempotent() {
 #[tokio::test]
 async fn pgc8_fetcher_transport_error_503_no_write() {
     let pool = pool().await;
-    let company = Uuid::new_v4();
     let txn_id = uq("MID-TXN");
     let order_id = uq("MID-ORDER");
     let (provider, txn) = seed_pending(
         &pool,
-        company,
         "midtrans",
         None,
         &order_id,
@@ -1070,7 +1043,7 @@ async fn pgc8_fetcher_transport_error_503_no_write() {
         StubRefetch::failing(RefetchError::Transport("connect timeout after 10s".into())),
     );
 
-    let before = snap(&pool, company).await;
+    let before = snap(&pool, &[provider]).await;
     let body = midtrans_body(&txn_id, &order_id, 1000000, "settlement");
     let target = target_for("midtrans", provider);
     let headers = HeaderMap::new();
@@ -1094,7 +1067,7 @@ async fn pgc8_fetcher_transport_error_503_no_write() {
 
     assert_eq!(row_status(&pool, txn).await, "pending");
     assert_eq!(
-        snap(&pool, company).await,
+        snap(&pool, &[provider]).await,
         before,
         "a transient outage must not write anything"
     );
@@ -1140,11 +1113,9 @@ async fn pgc9_scheme_mismatch_refused_in_pipeline() {
     // The route declared ApiRefetch for a provider whose codec is HmacRawBody —
     // refused before verification, before any read that matters.
     let pool = pool().await;
-    let company = Uuid::new_v4();
     let txn_id = uq("DOKU-TXN");
     let (provider, txn) = seed_pending(
         &pool,
-        company,
         "doku",
         Some("doku-cred-1"),
         &txn_id,
@@ -1158,7 +1129,7 @@ async fn pgc9_scheme_mismatch_refused_in_pipeline() {
         FakeCreds::with("doku-cred-1", "SK-DOKU-TEST"),
         StubRefetch::not_settled(),
     );
-    let before = snap(&pool, company).await;
+    let before = snap(&pool, &[provider]).await;
 
     let body = doku_body(&txn_id, 1000000, "SETTLE");
     let target = target_for("doku", provider);
@@ -1181,7 +1152,7 @@ async fn pgc9_scheme_mismatch_refused_in_pipeline() {
     assert_eq!(err.code(), "scheme_mismatch");
 
     assert_eq!(row_status(&pool, txn).await, "pending");
-    assert_eq!(snap(&pool, company).await, before);
+    assert_eq!(snap(&pool, &[provider]).await, before);
     assert_eq!(calls.load(Ordering::SeqCst), 0);
     assert_eq!(settled_events(&recorder), 0);
 }
@@ -1193,7 +1164,6 @@ async fn pgc9_scheme_mismatch_refused_in_pipeline() {
 #[tokio::test]
 async fn pgw1_settle_by_provider_tx_verified_rejects_bad_money() {
     let pool = pool().await;
-    let company = Uuid::new_v4();
     let recorder = Arc::new(Recorder::default());
     let svc =
         GatewayWriteService::with_sink(pool.clone(), recorder.clone() as Arc<dyn GatewayEventSink>);
@@ -1204,15 +1174,15 @@ async fn pgw1_settle_by_provider_tx_verified_rejects_bad_money() {
         calls: calls.clone(),
     };
 
-    // One provider, three transactions (company+code is unique on the table).
-    let provider = seed_provider(&pool, company, "midtrans", None).await;
+    // One provider, three transactions — each keyed by its own provider
+    // transaction id.
+    let provider = seed_provider(&pool, "midtrans", None).await;
 
     // (a) authority gross disagrees with the recorded row ⇒ invalid_money,
     //     row untouched, nothing stamped.
     let t1 = uq("MID-TXN");
     let row1 = seed_txn(
         &pool,
-        company,
         provider,
         "midtrans",
         &t1,
@@ -1221,7 +1191,7 @@ async fn pgw1_settle_by_provider_tx_verified_rejects_bad_money() {
     )
     .await;
     let err = svc
-        .settle_by_provider_tx_verified(company, "midtrans", &t1, d("999999"), None, None, &fee)
+        .settle_by_provider_tx_verified("midtrans", &t1, d("999999"), None, None, &fee)
         .await
         .unwrap_err();
     assert_eq!(err.code(), "invalid_money", "got {err:?}");
@@ -1231,7 +1201,6 @@ async fn pgw1_settle_by_provider_tx_verified_rejects_bad_money() {
     let t2 = uq("MID-TXN");
     let row2 = seed_txn(
         &pool,
-        company,
         provider,
         "midtrans",
         &t2,
@@ -1241,7 +1210,6 @@ async fn pgw1_settle_by_provider_tx_verified_rejects_bad_money() {
     .await;
     let err = svc
         .settle_by_provider_tx_verified(
-            company,
             "midtrans",
             &t2,
             d("1000000"),
@@ -1272,7 +1240,6 @@ async fn pgw1_settle_by_provider_tx_verified_rejects_bad_money() {
     let t3 = uq("MID-TXN");
     let row3 = seed_txn(
         &pool,
-        company,
         provider,
         "midtrans",
         &t3,
@@ -1281,7 +1248,7 @@ async fn pgw1_settle_by_provider_tx_verified_rejects_bad_money() {
     )
     .await;
     let out = svc
-        .settle_by_provider_tx_verified(company, "midtrans", &t3, d("1000000"), None, None, &fee)
+        .settle_by_provider_tx_verified("midtrans", &t3, d("1000000"), None, None, &fee)
         .await
         .expect("row-fee fallback must settle");
     assert!(!out.already_settled);

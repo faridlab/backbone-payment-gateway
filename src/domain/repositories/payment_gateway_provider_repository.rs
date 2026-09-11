@@ -45,7 +45,6 @@ pub struct PaymentGatewayProviderPaginatedResult {
 #[derive(Debug, Clone, Default)]
 pub struct PaymentGatewayProviderFilter {
     pub code: Option<GatewayProviderCode>,
-    pub company_id: Option<Uuid>,
     pub display_name: Option<String>,
     pub credentials_ref: Option<String>,
     pub fee_account_id: Option<Uuid>,
@@ -57,7 +56,7 @@ pub struct PaymentGatewayProviderFilter {
 impl PaymentGatewayProviderFilter {
     /// Check if any filter is set
     pub fn has_filters(&self) -> bool {
-        self.code.is_some() || self.company_id.is_some() || self.display_name.is_some() || self.credentials_ref.is_some() || self.fee_account_id.is_some() || self.settlement_account_id.is_some() || self.clearing_account_id.is_some() || self.status.is_some()
+        self.code.is_some() || self.display_name.is_some() || self.credentials_ref.is_some() || self.fee_account_id.is_some() || self.settlement_account_id.is_some() || self.clearing_account_id.is_some() || self.status.is_some()
     }
 }
 

@@ -25,7 +25,6 @@ impl TestDataGenerator for PaymentGatewayProviderTestData {
         json!({
             "id": Uuid::new_v4().to_string(),
             "code": format!("TEST_{}", Uuid::new_v4().to_string().split('-').next().unwrap()),
-            "company_id": Uuid::new_v4().to_string(),
             "display_name": format!("Test {}", Uuid::new_v4().to_string().split('-').next().unwrap()),
             "credentials_ref": null,
             "fee_account_id": null,
@@ -41,7 +40,6 @@ impl TestDataGenerator for PaymentGatewayProviderTestData {
         json!({
             "id": id,
             "code": format!("TEST_{}", Uuid::new_v4().to_string().split('-').next().unwrap()),
-            "company_id": Uuid::new_v4().to_string(),
             "display_name": format!("Test {}", Uuid::new_v4().to_string().split('-').next().unwrap()),
             "credentials_ref": null,
             "fee_account_id": null,

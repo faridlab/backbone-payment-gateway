@@ -55,7 +55,6 @@ impl std::ops::Deref for GatewayTransactionId {
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct GatewayTransaction {
     pub id: Uuid,
-    pub company_id: Uuid,
     pub provider_id: Uuid,
     pub provider_code: GatewayProviderCode,
     pub provider_transaction_id: String,
@@ -85,10 +84,9 @@ impl GatewayTransaction {
     }
 
     /// Create a new GatewayTransaction with required fields
-    pub fn new(company_id: Uuid, provider_id: Uuid, provider_code: GatewayProviderCode, provider_transaction_id: String, direction: GatewayDirection, gross_amount: Decimal, fee_amount: Decimal, net_amount: Decimal, currency: String, status: GatewayTransactionStatus, posting_state: GatewayPostingState) -> Self {
+    pub fn new(provider_id: Uuid, provider_code: GatewayProviderCode, provider_transaction_id: String, direction: GatewayDirection, gross_amount: Decimal, fee_amount: Decimal, net_amount: Decimal, currency: String, status: GatewayTransactionStatus, posting_state: GatewayPostingState) -> Self {
         Self {
             id: Uuid::new_v4(),
-            company_id,
             provider_id,
             provider_code,
             provider_transaction_id,
@@ -220,9 +218,6 @@ impl GatewayTransaction {
     pub fn apply_patch(&mut self, fields: std::collections::HashMap<String, serde_json::Value>) {
         for (key, value) in fields {
             match key.as_str() {
-                "company_id" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.company_id = v; }
-                }
                 "provider_id" => {
                     if let Ok(v) = serde_json::from_value(value) { self.provider_id = v; }
                 }
@@ -328,7 +323,6 @@ impl backbone_orm::EntityRepoMeta for GatewayTransaction {
     fn column_types() -> std::collections::HashMap<String, String> {
         let mut m = std::collections::HashMap::new();
         m.insert("id".to_string(), "uuid".to_string());
-        m.insert("company_id".to_string(), "uuid".to_string());
         m.insert("provider_id".to_string(), "uuid".to_string());
         m.insert("party_id".to_string(), "uuid".to_string());
         m.insert("payment_entry_id".to_string(), "uuid".to_string());
@@ -343,9 +337,6 @@ impl backbone_orm::EntityRepoMeta for GatewayTransaction {
     fn search_fields() -> &'static [&'static str] {
         &["provider_transaction_id", "currency"]
     }
-    fn company_field() -> Option<&'static str> {
-        Some("company_id")
-    }
 }
 
 /// Builder for GatewayTransaction entity
@@ -354,7 +345,6 @@ impl backbone_orm::EntityRepoMeta for GatewayTransaction {
 /// System fields (id, metadata, timestamps) are auto-initialized.
 #[derive(Debug, Clone, Default)]
 pub struct GatewayTransactionBuilder {
-    company_id: Option<Uuid>,
     provider_id: Option<Uuid>,
     provider_code: Option<GatewayProviderCode>,
     provider_transaction_id: Option<String>,
@@ -375,12 +365,6 @@ pub struct GatewayTransactionBuilder {
 }
 
 impl GatewayTransactionBuilder {
-    /// Set the company_id field (required)
-    pub fn company_id(mut self, value: Uuid) -> Self {
-        self.company_id = Some(value);
-        self
-    }
-
     /// Set the provider_id field (required)
     pub fn provider_id(mut self, value: Uuid) -> Self {
         self.provider_id = Some(value);
@@ -487,7 +471,6 @@ impl GatewayTransactionBuilder {
     ///
     /// Returns Err if any required field without a default is missing.
     pub fn build(self) -> Result<GatewayTransaction, String> {
-        let company_id = self.company_id.ok_or_else(|| "company_id is required".to_string())?;
         let provider_id = self.provider_id.ok_or_else(|| "provider_id is required".to_string())?;
         let provider_code = self.provider_code.ok_or_else(|| "provider_code is required".to_string())?;
         let provider_transaction_id = self.provider_transaction_id.ok_or_else(|| "provider_transaction_id is required".to_string())?;
@@ -496,7 +479,6 @@ impl GatewayTransactionBuilder {
 
         Ok(GatewayTransaction {
             id: Uuid::new_v4(),
-            company_id,
             provider_id,
             provider_code,
             provider_transaction_id,

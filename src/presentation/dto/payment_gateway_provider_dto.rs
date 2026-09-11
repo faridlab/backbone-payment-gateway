@@ -35,9 +35,6 @@ use crate::domain::entity::ProviderStatus;
 #[serde(rename_all = "camelCase")]
 pub struct CreatePaymentGatewayProviderDto {
     pub code: GatewayProviderCode,
-    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
-    #[serde(alias = "company_id")]
-    pub company_id: Uuid,
     #[cfg_attr(feature = "validation", validate(length(max = 120)))]
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     #[serde(alias = "display_name")]
@@ -68,9 +65,6 @@ pub struct CreatePaymentGatewayProviderDto {
 #[serde(rename_all = "camelCase")]
 pub struct UpdatePaymentGatewayProviderDto {
     pub code: GatewayProviderCode,
-    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
-    #[serde(alias = "company_id")]
-    pub company_id: Uuid,
     #[cfg_attr(feature = "validation", validate(length(max = 120)))]
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     #[serde(alias = "display_name")]
@@ -102,9 +96,6 @@ pub struct UpdatePaymentGatewayProviderDto {
 pub struct PatchPaymentGatewayProviderDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub code: Option<GatewayProviderCode>,
-    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
-    #[serde(skip_serializing_if = "Option::is_none", alias = "company_id")]
-    pub company_id: Option<Uuid>,
     #[cfg_attr(feature = "validation", validate(length(max = 120)))]
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     #[serde(skip_serializing_if = "Option::is_none", alias = "display_name")]
@@ -125,7 +116,7 @@ pub struct PatchPaymentGatewayProviderDto {
 impl PatchPaymentGatewayProviderDto {
     /// Check if any field is set
     pub fn has_changes(&self) -> bool {
-        self.code.is_some() || self.company_id.is_some() || self.display_name.is_some() || self.credentials_ref.is_some() || self.fee_account_id.is_some() || self.settlement_account_id.is_some() || self.clearing_account_id.is_some() || self.status.is_some()
+        self.code.is_some() || self.display_name.is_some() || self.credentials_ref.is_some() || self.fee_account_id.is_some() || self.settlement_account_id.is_some() || self.clearing_account_id.is_some() || self.status.is_some()
     }
 }
 
@@ -144,8 +135,6 @@ pub struct PaymentGatewayProviderResponseDto {
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     pub id: Uuid,
     pub code: GatewayProviderCode,
-    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
-    pub company_id: Uuid,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     pub display_name: String,
     pub credentials_ref: Option<String>,
@@ -211,8 +200,8 @@ impl PaymentGatewayProviderListResponseDto {
 pub struct PaymentGatewayProviderSummaryDto {
     pub id: Uuid,
     pub code: GatewayProviderCode,
-    pub company_id: Uuid,
     pub display_name: String,
+    pub credentials_ref: Option<String>,
     pub created_at: Option<DateTime<Utc>>,
 }
 
@@ -225,7 +214,6 @@ impl From<PaymentGatewayProvider> for PaymentGatewayProviderResponseDto {
         Self {
             id: entity.id,
             code: entity.code,
-            company_id: entity.company_id,
             display_name: entity.display_name,
             credentials_ref: entity.credentials_ref,
             fee_account_id: entity.fee_account_id,
@@ -243,8 +231,8 @@ impl From<PaymentGatewayProvider> for PaymentGatewayProviderSummaryDto {
         Self {
             id: entity.id,
             code: entity.code,
-            company_id: entity.company_id,
             display_name: entity.display_name,
+            credentials_ref: entity.credentials_ref,
             created_at,
         }
     }
@@ -255,7 +243,6 @@ impl From<CreatePaymentGatewayProviderDto> for PaymentGatewayProvider {
         Self {
             id: Uuid::new_v4(),
             code: dto.code,
-            company_id: dto.company_id,
             display_name: dto.display_name,
             credentials_ref: dto.credentials_ref,
             fee_account_id: dto.fee_account_id,
@@ -272,7 +259,6 @@ impl From<&PaymentGatewayProvider> for PaymentGatewayProviderResponseDto {
         Self {
             id: entity.id.clone(),
             code: entity.code.clone(),
-            company_id: entity.company_id.clone(),
             display_name: entity.display_name.clone(),
             credentials_ref: entity.credentials_ref.clone(),
             fee_account_id: entity.fee_account_id.clone(),
@@ -293,7 +279,6 @@ impl backbone_core::FromCreateDto<CreatePaymentGatewayProviderDto> for PaymentGa
 impl backbone_core::ApplyUpdateDto<UpdatePaymentGatewayProviderDto> for PaymentGatewayProvider {
     fn apply_update(mut self, dto: UpdatePaymentGatewayProviderDto) -> backbone_core::ServiceResult<Self> {
         self.code = dto.code;
-        self.company_id = dto.company_id;
         self.display_name = dto.display_name;
         self.credentials_ref = dto.credentials_ref;
         self.fee_account_id = dto.fee_account_id;

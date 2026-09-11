@@ -1,10 +1,10 @@
 # =============================================================================
 # Domain: PaymentGateway
 # Entity: PaymentGatewayProvider
-# Description: A configured payment-gateway provider for a company — the config
-# master. It maps a provider `code` (midtrans / xendit / doku / stripe / manual)
-# to the GL accounts the gateway posts against: `fee_account_id` is the Gateway
-# Fee Expense account debited for the fee, and `settlement_account_id` is the
+# Description: A configured payment-gateway provider — the config master. It
+# maps a provider `code` (midtrans / xendit / doku / stripe / manual) to the GL
+# accounts the gateway posts against: `fee_account_id` is the Gateway Fee
+# Expense account debited for the fee, and `settlement_account_id` is the
 # Bank/Cash account net funds land in. Credentials are NEVER inline —
 # `credentials_ref` is an opaque pointer into the secret store. Concrete provider
 # SDKs (the actual Midtrans/Xendit HTTP clients) live at the composition layer,
@@ -14,7 +14,7 @@
 models:
   - name: PaymentGatewayProvider
     collection: payment_gateway_providers
-    description: "A configured payment-gateway provider for a company (config master)"
+    description: "A configured payment-gateway provider (config master)"
 
     fields:
       id:
@@ -26,11 +26,6 @@ models:
         type: GatewayProviderCode
         attributes: ["@required"]
         description: "Which gateway provider"
-
-      company_id:
-        type: uuid
-        attributes: ["@required", "@exclude_from_foreign_key_check"]
-        description: "Books owner # logical FK to organization.Company.id"
 
       display_name:
         type: string
@@ -69,9 +64,11 @@ models:
         description: "Audit metadata"
 
     indexes:
-      - type: unique
-        fields: [company_id, code]
-        where: "deleted_at IS NULL"
+      # No tenancy indexes (ADR-0029): the module is tenant-agnostic. The per-unit
+      # provider-code unique — one live config per code per org unit among live
+      # rows — is installed by the composing service's tenancy decorator
+      # (org_unit_id-leading), not declared here; a tenant-free (code)-only unique
+      # would wrongly forbid two units from both configuring the same gateway.
       - type: index
         fields: [code, status]
 

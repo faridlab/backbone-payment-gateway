@@ -19,7 +19,7 @@
 //! [`GatewayTransactionRepository`]'s custom methods, which take the caller's
 //! transaction so the transition + emission commit as one unit.
 
-use backbone_orm::company_scope;
+use backbone_orm::org_scope;
 use rust_decimal::Decimal;
 use sqlx::PgPool;
 use std::sync::Arc;
@@ -151,8 +151,8 @@ impl GatewayWriteService {
         fee_sink: &dyn GlPostSink,
     ) -> Result<SettleOutcome, GatewayError> {
         // One read: the transaction + its provider's GL accounts (scoped by the
-        // request/inherited company). Resolved BEFORE the transition so a
-        // missing-accounts / non-IDR failure leaves the row untouched.
+        // ambient org scope the composing service bound). Resolved BEFORE the
+        // transition so a missing-accounts / non-IDR failure leaves the row untouched.
         let src = self
             .txns
             .fetch_fee_source(&self.db_pool, gateway_transaction_id)
@@ -173,7 +173,6 @@ impl GatewayWriteService {
                 fee_post: None,
             });
         }
-        let company_id = src.company_id;
         let fee_env = compose_fee_post(&src, chrono::Utc::now().date_naive());
 
         // Post the fee first (outside the transition tx — accounting is its own UoW
@@ -197,9 +196,13 @@ impl GatewayWriteService {
 
         // Transition + emit in ONE tx (crash-safe): the transition UPDATE and the
         // header read ride the same connection; the event fires only if THIS call
-        // performed the transition (rows_affected == 1).
+        // performed the transition (rows_affected == 1). The ambient org scope (when
+        // the composing service bound one) is relayed onto the transaction so every
+        // statement inside sees the same fence.
         let mut tx = self.db_pool.begin().await?;
-        company_scope::bind_company_on(&mut tx, company_id).await?;
+        if let Some(scope) = org_scope::current_org_scope() {
+            org_scope::bind_org_scope_on(&mut tx, &scope).await?;
+        }
         let posting_state = if fee_ack.is_some() {
             "posted"
         } else {
@@ -284,7 +287,6 @@ impl GatewayWriteService {
                 src.status
             )));
         }
-        let company_id = src.company_id;
         let fee_reversal_env = compose_fee_reversal(&src, chrono::Utc::now().date_naive());
 
         let fee_ack = match fee_reversal_env.as_ref() {
@@ -302,7 +304,9 @@ impl GatewayWriteService {
         };
 
         let mut tx = self.db_pool.begin().await?;
-        company_scope::bind_company_on(&mut tx, company_id).await?;
+        if let Some(scope) = org_scope::current_org_scope() {
+            org_scope::bind_org_scope_on(&mut tx, &scope).await?;
+        }
         let rows = self
             .txns
             .transition_to_refunded(&mut tx, gateway_transaction_id)
@@ -385,7 +389,6 @@ impl GatewayWriteService {
     /// row is never silently re-priced.
     pub async fn settle_by_provider_tx_verified(
         &self,
-        company_id: Uuid,
         provider_code: &str,
         provider_transaction_id: &str,
         authority_gross: Decimal,
@@ -393,49 +396,46 @@ impl GatewayWriteService {
         raw_payload: Option<serde_json::Value>,
         fee_sink: &dyn GlPostSink,
     ) -> Result<SettleOutcome, GatewayError> {
-        company_scope::with_company_scope(Some(company_id), async {
-            let id = self
-                .txns
-                .find_id_by_provider_tx(&self.db_pool, provider_code, provider_transaction_id)
-                .await?
-                .ok_or_else(|| GatewayError::NotFound(Uuid::nil()))?;
-            let src = self
-                .txns
-                .fetch_fee_source(&self.db_pool, id)
-                .await?
-                .ok_or(GatewayError::NotFound(id))?;
+        let id = self
+            .txns
+            .find_id_by_provider_tx(&self.db_pool, provider_code, provider_transaction_id)
+            .await?
+            .ok_or_else(|| GatewayError::NotFound(Uuid::nil()))?;
+        let src = self
+            .txns
+            .fetch_fee_source(&self.db_pool, id)
+            .await?
+            .ok_or(GatewayError::NotFound(id))?;
 
-            // Money gate: valid on the authority's numbers, and the authority
-            // must agree with what was recorded for this transaction.
-            let fee = authority_fee.unwrap_or(src.fee_amount);
-            if let Some(authority) = authority_fee {
-                if authority != src.fee_amount {
-                    tracing::warn!(
-                        gateway_transaction_id = %id,
-                        authority_fee = %authority,
-                        recorded_fee = %src.fee_amount,
-                        "provider-reported fee diverges from the recorded estimate — the recorded fee books; reconcile against the provider statement"
-                    );
-                }
+        // Money gate: valid on the authority's numbers, and the authority
+        // must agree with what was recorded for this transaction.
+        let fee = authority_fee.unwrap_or(src.fee_amount);
+        if let Some(authority) = authority_fee {
+            if authority != src.fee_amount {
+                tracing::warn!(
+                    gateway_transaction_id = %id,
+                    authority_fee = %authority,
+                    recorded_fee = %src.fee_amount,
+                    "provider-reported fee diverges from the recorded estimate — the recorded fee books; reconcile against the provider statement"
+                );
             }
-            let net = authority_gross - fee;
-            Self::check_money(authority_gross, fee, net)?;
-            if authority_gross != src.gross_amount {
-                return Err(GatewayError::InvalidMoney(format!(
-                    "authority gross {} != recorded gross {} for provider txn '{}'",
-                    authority_gross, src.gross_amount, provider_transaction_id
-                )));
-            }
+        }
+        let net = authority_gross - fee;
+        Self::check_money(authority_gross, fee, net)?;
+        if authority_gross != src.gross_amount {
+            return Err(GatewayError::InvalidMoney(format!(
+                "authority gross {} != recorded gross {} for provider txn '{}'",
+                authority_gross, src.gross_amount, provider_transaction_id
+            )));
+        }
 
-            // Audit stamp of the exact verified bytes — first delivery wins; a
-            // redelivery keeps the original. Post-gate, post-verify only.
-            if let Some(payload) = raw_payload {
-                let _ = self.txns.stamp_raw_payload(&self.db_pool, id, payload).await;
-            }
+        // Audit stamp of the exact verified bytes — first delivery wins; a
+        // redelivery keeps the original. Post-gate, post-verify only.
+        if let Some(payload) = raw_payload {
+            let _ = self.txns.stamp_raw_payload(&self.db_pool, id, payload).await;
+        }
 
-            self.settle_transaction(id, fee_sink).await
-        })
-        .await
+        self.settle_transaction(id, fee_sink).await
     }
 
     /// Stamp-back the PaymentEntry the composition ACL created for a settled
@@ -444,17 +444,13 @@ impl GatewayWriteService {
     /// 0 when a link already existed (idempotent).
     pub async fn link_payment_entry(
         &self,
-        company_id: Uuid,
         gateway_transaction_id: Uuid,
         payment_entry_id: Uuid,
     ) -> Result<u64, GatewayError> {
-        company_scope::with_company_scope(Some(company_id), async {
-            self.txns
-                .link_payment_entry(&self.db_pool, gateway_transaction_id, payment_entry_id)
-                .await
-                .map_err(GatewayError::Db)
-        })
-        .await
+        self.txns
+            .link_payment_entry(&self.db_pool, gateway_transaction_id, payment_entry_id)
+            .await
+            .map_err(GatewayError::Db)
     }
 
     /// Borrow the event sink (for wiring / inspection).

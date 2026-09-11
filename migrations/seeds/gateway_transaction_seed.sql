@@ -6,7 +6,6 @@
 
 -- INSERT INTO payment_gateway.gateway_transactions (
 --     id,
---     company_id,
 --     provider_id,
 --     provider_code,
 --     provider_transaction_id,

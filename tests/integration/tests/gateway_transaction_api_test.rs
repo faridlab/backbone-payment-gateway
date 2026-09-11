@@ -24,7 +24,6 @@ impl TestDataGenerator for GatewayTransactionTestData {
         let now = Utc::now().to_rfc3339();
         json!({
             "id": Uuid::new_v4().to_string(),
-            "company_id": Uuid::new_v4().to_string(),
             "provider_id": Uuid::new_v4().to_string(),
             "provider_code": "manual",
             "provider_transaction_id": format!("Test {}", Uuid::new_v4().to_string().split('-').next().unwrap()),
@@ -50,7 +49,6 @@ impl TestDataGenerator for GatewayTransactionTestData {
         let now = Utc::now().to_rfc3339();
         json!({
             "id": id,
-            "company_id": Uuid::new_v4().to_string(),
             "provider_id": Uuid::new_v4().to_string(),
             "provider_code": "manual",
             "provider_transaction_id": format!("Test {}", Uuid::new_v4().to_string().split('-').next().unwrap()),

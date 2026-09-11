@@ -10,6 +10,12 @@
 //! reconciliation to invoices stays payment's job, so an unmapped settlement
 //! lands as on-account (payment's existing path). Zero normal Cargo edges — the
 //! envelope is the wire contract, the same shape as payment's seam.
+//!
+//! Tenancy (ADR-0029): the module is tenant-agnostic. The `company_id` fields on
+//! these payloads are the documented legacy twin — the composing ACL (which may
+//! still write into company-scoped counterpart modules) keeps receiving one,
+//! echoed from the ambient org scope; nothing in this module keys a statement on
+//! it.
 
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
@@ -22,6 +28,7 @@ use uuid::Uuid;
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct GatewayTransactionSettled {
     pub gateway_transaction_id: Uuid,
+    /// The legacy tenancy twin (ADR-0029) — see the module-level note.
     pub company_id: Uuid,
     /// "manual" | "midtrans" | "xendit" | "doku" | "stripe" — the provider that
     /// observed the transaction (string so the seam carries no Rust enum edge).
@@ -53,6 +60,7 @@ pub struct GatewayTransactionSettled {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct GatewayTransactionRefunded {
     pub gateway_transaction_id: Uuid,
+    /// The legacy tenancy twin (ADR-0029) — see the module-level note.
     pub company_id: Uuid,
     pub provider_code: String,
     pub provider_transaction_id: String,

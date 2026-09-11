@@ -33,6 +33,10 @@ pub enum GatewayError {
 /// A request to create a charge at a provider.
 #[derive(Debug, Clone)]
 pub struct CreateChargeRequest {
+    /// The legacy tenancy twin (ADR-0029): this module is tenant-agnostic, so
+    /// callers pass the ambient org scope's legacy echo. Implementations that
+    /// still key provider clients or credentials by company resolve the acting
+    /// tenant from their own request context during the re-key transition.
     pub company_id: Uuid,
     pub amount: Decimal,
     pub currency: String,

@@ -20,6 +20,7 @@ use backbone_payment::application::service::payment_events::{
 use backbone_payment::application::service::payment_gl::{
     AccountingPostEnvelope, GlPostAck, GlPostLine, GlPostRejected, GlPostSink,
 };
+use backbone_orm::org_scope::{with_org_request_scope, OrgScope};
 use backbone_payment::application::service::payment_write_service::{
     NewPayment, PaymentWriteService,
 };
@@ -122,7 +123,6 @@ async fn apply_settlement_acl(
     let payment_id = payments
         .create_payment(NewPayment {
             payment_number: uq("GWP"),
-            company_id: s.company_id,
             branch_id: None,
             payment_type: "receive".into(),
             party_type: s.party_type.clone(),
@@ -149,17 +149,17 @@ async fn apply_settlement_acl(
         .expect("post the settlement journal");
 }
 
-async fn seed_gateway_tx(pool: &PgPool, company: Uuid, bank: Uuid, gross: Decimal, fee: Decimal) -> Uuid {
+async fn seed_gateway_tx(pool: &PgPool, bank: Uuid, gross: Decimal, fee: Decimal) -> Uuid {
     // The payment settle path probes `accounting.accounts.is_reconcilable` for the bank account to
     // pick its landing state (in_flight vs paid), so the seam DB carries a minimal accounting
-    // schema and the bank + A/R accounts must exist as readable rows for the company.
+    // schema and the bank + A/R accounts must exist as readable rows.
     for (id, code, name, at, st, rec) in [
         (bank, "1110", "Bank", "asset", "bank", true),
         (Uuid::new_v4(), "1200", "A/R", "asset", "accounts_receivable", false),
     ] {
-        sqlx::query(r#"INSERT INTO accounting.accounts (id, company_id, account_number, account_code, name, account_type, account_subtype, normal_balance, is_header, is_detail, is_reconcilable, status)
-            VALUES ($1,$2,$3,$4,$5,$6::account_type,$7::account_subtype,'debit'::normal_balance,false,true,$8,'active'::account_status)"#)
-            .bind(id).bind(company).bind(code).bind(code).bind(name).bind(at).bind(st).bind(rec)
+        sqlx::query(r#"INSERT INTO accounting.accounts (id, account_number, account_code, name, account_type, account_subtype, normal_balance, is_header, is_detail, is_reconcilable, status)
+            VALUES ($1,$2,$3,$4,$5::account_type,$6::account_subtype,'debit'::normal_balance,false,true,$7,'active'::account_status)"#)
+            .bind(id).bind(code).bind(code).bind(name).bind(at).bind(st).bind(rec)
             .execute(pool).await.expect("seed acct");
     }
 
@@ -167,11 +167,10 @@ async fn seed_gateway_tx(pool: &PgPool, company: Uuid, bank: Uuid, gross: Decima
     let fee_acc = Uuid::new_v4();
     sqlx::query(
         r#"INSERT INTO payment_gateway.payment_gateway_providers
-             (id, code, company_id, display_name, fee_account_id, settlement_account_id, status, metadata)
-           VALUES ($1, 'midtrans'::gateway_provider_code, $2, $3, $4, $5, 'active', $6::jsonb)"#,
+             (id, code, display_name, fee_account_id, settlement_account_id, status, metadata)
+           VALUES ($1, 'midtrans'::gateway_provider_code, $2, $3, $4, 'active', $5::jsonb)"#,
     )
     .bind(provider)
-    .bind(company)
     .bind(uq("Midtrans"))
     .bind(fee_acc)
     .bind(bank)
@@ -181,18 +180,19 @@ async fn seed_gateway_tx(pool: &PgPool, company: Uuid, bank: Uuid, gross: Decima
     .unwrap();
 
     let txn = Uuid::new_v4();
+    let party = Uuid::new_v4();
     sqlx::query(
         r#"INSERT INTO payment_gateway.gateway_transactions
-             (id, company_id, provider_id, provider_code, provider_transaction_id, direction,
+             (id, provider_id, provider_code, provider_transaction_id, direction,
               party_type, party_id, gross_amount, fee_amount, net_amount, currency, status, posting_state, metadata)
-           VALUES ($1, $2, $3, 'midtrans'::gateway_provider_code, $4, 'receive'::gateway_direction,
-                   'customer'::gateway_party_type, $2, $5, $6, $7, 'IDR',
+           VALUES ($1, $2, 'midtrans'::gateway_provider_code, $3, 'receive'::gateway_direction,
+                   'customer'::gateway_party_type, $4, $5, $6, $7, 'IDR',
                    'pending'::gateway_transaction_status, 'pending'::gateway_posting_state, $8::jsonb)"#,
     )
     .bind(txn)
-    .bind(company)
     .bind(provider)
     .bind(uq("MID-ORDER"))
+    .bind(party)
     .bind(gross)
     .bind(fee)
     .bind(gross - fee)
@@ -206,12 +206,11 @@ async fn seed_gateway_tx(pool: &PgPool, company: Uuid, bank: Uuid, gross: Decima
 #[tokio::test]
 async fn seam_settle_balances_across_payment_and_gateway() {
     let pool = pool().await;
-    let company = Uuid::new_v4();
     let bank = Uuid::new_v4();
     let ar = Uuid::new_v4();
     let gross = d("1000000");
     let fee = d("30000");
-    let txn = seed_gateway_tx(&pool, company, bank, gross, fee).await;
+    let txn = seed_gateway_tx(&pool, bank, gross, fee).await;
 
     // The composition: one shared ledger, the payment write service, and a
     // recorder capturing the seam event the gateway emits on settle.
@@ -227,9 +226,18 @@ async fn seam_settle_balances_across_payment_and_gateway() {
     gateway.settle_transaction(txn, ledger.as_ref()).await.expect("gateway settle");
 
     // The composition ACL turns the emitted event into a PaymentEntry + settlement post.
+    // Payment's settlement post reads the legacy company twin off the ambient org scope
+    // (ADR-0029), so the ACL runs inside one — exactly how the composing service binds it.
     let events = recorder.events.lock().unwrap().clone();
     assert_eq!(events.len(), 1, "exactly one seam event emitted");
-    apply_settlement_acl(&events[0], &payments, ledger.as_ref(), bank, ar).await;
+    let company = Uuid::new_v4();
+    with_org_request_scope(
+        &pool,
+        OrgScope::for_company_unit(company),
+        apply_settlement_acl(&events[0], &payments, ledger.as_ref(), bank, ar),
+    )
+    .await
+    .expect("bind org request scope for the settlement post");
 
     // The three movements reconcile: Bank net = gross − fee; A/R = −gross;
     // the whole ledger sums to zero (double-entry balances), which forces the

@@ -10,14 +10,29 @@ use rust_decimal::Decimal;
 use sqlx::{PgPool, Row};
 use uuid::Uuid;
 
-use backbone_orm::company_scope;
+use backbone_orm::org_scope;
 
 use crate::infrastructure::persistence::GatewayTransactionRepository;
+
+/// The legacy tenancy twin echo (ADR-0029): returned shapes and downstream wire
+/// contracts carry a `company_id` field for still-company-keyed counterparties (the
+/// GL-posting envelope, the settlement seam events), but the stripped tables hold no
+/// company column. Echo the ambient org scope's legacy company id when the composing
+/// service bound one; nil otherwise. Nothing in this module keys a statement on it,
+/// and an undecorated deployment is unfenced by design.
+fn legacy_company_echo() -> Uuid {
+    org_scope::current_org_scope()
+        .and_then(|s| s.legacy_company_id())
+        .unwrap_or(Uuid::nil())
+}
 
 /// Everything the fee-post builder needs: the transaction's money + party, and
 /// the provider's fee/expense and settlement(bank) GL accounts (joined).
 pub struct FeeSourceRow {
     pub gateway_transaction_id: Uuid,
+    /// The legacy tenancy twin (ADR-0029) — echoed from the ambient org scope, never
+    /// read from the table. Rides only into the GL-posting envelope, whose wire
+    /// contract still carries the field for unstripped producers.
     pub company_id: Uuid,
     pub provider_transaction_id: String,
     /// "receive" | "pay".
@@ -47,6 +62,7 @@ pub struct FeeSourceRow {
 
 /// The settled header the `GatewayTransactionSettled` emission reads.
 pub struct SettledHeaderRow {
+    /// The legacy tenancy twin (ADR-0029) — see [`FeeSourceRow::company_id`].
     pub company_id: Uuid,
     pub provider_code: String,
     pub provider_transaction_id: String,
@@ -62,18 +78,18 @@ pub struct SettledHeaderRow {
 }
 
 impl GatewayTransactionRepository {
-    /// Read the transaction + its provider's GL accounts (joined). ID-only: fenced
-    /// by the caller's `app.company_id` scope (ADR-0008-style RLS). A non-request
-    /// caller MUST wrap in `with_company_scope(Some(company_id))`.
+    /// Read the transaction + its provider's GL accounts (joined). ID-only: the
+    /// composing service's org fence (RLS on the decorator-installed org axis)
+    /// scopes it; an undecorated deployment is unfenced by design (ADR-0029).
     pub async fn fetch_fee_source(
         &self,
         pool: &PgPool,
         gateway_transaction_id: Uuid,
     ) -> Result<Option<FeeSourceRow>, sqlx::Error> {
-        let row = company_scope::fetch_optional_row_scoped(
+        let row = org_scope::fetch_optional_row_scoped(
             pool,
             sqlx::query(
-                r#"SELECT gt.id, gt.company_id, gt.provider_transaction_id, gt.direction::text AS dir,
+                r#"SELECT gt.id, gt.provider_transaction_id, gt.direction::text AS dir,
                           gt.party_type::text AS pt, gt.party_id, gt.gross_amount, gt.fee_amount,
                           gt.net_amount, gt.currency, gt.reference_no, gt.status::text AS st,
                           gt.fee_post_id, gt.payment_entry_id, gt.provider_code::text AS pcode,
@@ -87,7 +103,7 @@ impl GatewayTransactionRepository {
         .await?;
         Ok(row.map(|r| FeeSourceRow {
             gateway_transaction_id: r.get("id"),
-            company_id: r.get("company_id"),
+            company_id: legacy_company_echo(),
             provider_transaction_id: r.get("provider_transaction_id"),
             direction: r.get("dir"),
             party_type: r.get("pt"),
@@ -114,7 +130,7 @@ impl GatewayTransactionRepository {
         gateway_transaction_id: Uuid,
     ) -> Result<SettledHeaderRow, sqlx::Error> {
         let r = sqlx::query(
-            r#"SELECT company_id, provider_code::text AS pcode, provider_transaction_id,
+            r#"SELECT provider_code::text AS pcode, provider_transaction_id,
                       direction::text AS dir, party_type::text AS pt, party_id, gross_amount,
                       fee_amount, net_amount, currency, settled_at, reference_no
                FROM payment_gateway.gateway_transactions WHERE id=$1"#,
@@ -123,7 +139,7 @@ impl GatewayTransactionRepository {
         .fetch_one(conn)
         .await?;
         Ok(SettledHeaderRow {
-            company_id: r.get("company_id"),
+            company_id: legacy_company_echo(),
             provider_code: r.get("pcode"),
             provider_transaction_id: r.get("provider_transaction_id"),
             direction: r.get("dir"),
@@ -143,7 +159,7 @@ impl GatewayTransactionRepository {
     /// this being 1, because the seam creates a PaymentEntry + posts the fee — a
     /// double-emit would double-settle. Takes the CALLER'S connection so the
     /// transition and any outbox stage commit as one unit; the caller has already
-    /// bound the company on it (`bind_company_on`).
+    /// bound the ambient org scope on it (`org_scope::bind_org_scope_on`).
     pub async fn transition_to_settled(
         &self,
         conn: &mut sqlx::PgConnection,
@@ -191,17 +207,18 @@ impl GatewayTransactionRepository {
     }
 
     /// Resolve a GatewayTransaction id by the dedup key `(provider_code,
-    /// provider_transaction_id)` — what a webhook handler looks up first. Scoped by
-    /// the caller's company.
+    /// provider_transaction_id)` — what a webhook handler looks up first. Rides the
+    /// caller's ambient org scope (request connection when bound, plain pool
+    /// otherwise; ADR-0029).
     pub async fn find_id_by_provider_tx(
         &self,
         pool: &PgPool,
         provider_code: &str,
         provider_transaction_id: &str,
     ) -> Result<Option<Uuid>, sqlx::Error> {
-        company_scope::fetch_optional_scalar_scoped(
+        let row = org_scope::fetch_optional_row_scoped(
             pool,
-            sqlx::query_scalar(
+            sqlx::query(
                 r#"SELECT id FROM payment_gateway.gateway_transactions
                    WHERE provider_code=$1::gateway_provider_code
                      AND provider_transaction_id=$2
@@ -210,17 +227,19 @@ impl GatewayTransactionRepository {
             .bind(provider_code)
             .bind(provider_transaction_id),
         )
-        .await
+        .await?;
+        Ok(row.map(|r| r.get::<Uuid, _>("id")))
     }
 
-    /// Mark the fee post failed (accounting rejected). Caller supplies scope; result
-    /// deliberately ignored by the caller (the rejection is the error being reported).
+    /// Mark the fee post failed (accounting rejected). Rides the caller's ambient
+    /// org scope; result deliberately ignored by the caller (the rejection is the
+    /// error being reported).
     pub async fn mark_fee_failed(
         &self,
         pool: &PgPool,
         gateway_transaction_id: Uuid,
     ) -> Result<(), sqlx::Error> {
-        company_scope::execute_scoped(
+        org_scope::execute_scoped(
             pool,
             sqlx::query(
                 "UPDATE payment_gateway.gateway_transactions SET posting_state='failed'::gateway_posting_state WHERE id=$1",
@@ -242,7 +261,7 @@ impl GatewayTransactionRepository {
         gateway_transaction_id: Uuid,
         raw_payload: serde_json::Value,
     ) -> Result<u64, sqlx::Error> {
-        let res = company_scope::execute_scoped(
+        let res = org_scope::execute_scoped(
             pool,
             sqlx::query(
                 "UPDATE payment_gateway.gateway_transactions SET raw_payload=$2::jsonb \
@@ -265,7 +284,7 @@ impl GatewayTransactionRepository {
         gateway_transaction_id: Uuid,
         payment_entry_id: Uuid,
     ) -> Result<u64, sqlx::Error> {
-        let res = company_scope::execute_scoped(
+        let res = org_scope::execute_scoped(
             pool,
             sqlx::query(
                 "UPDATE payment_gateway.gateway_transactions SET payment_entry_id=$2 \

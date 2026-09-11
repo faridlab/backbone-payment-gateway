@@ -44,7 +44,6 @@ pub struct GatewayTransactionPaginatedResult {
 /// Filter parameters for list queries
 #[derive(Debug, Clone, Default)]
 pub struct GatewayTransactionFilter {
-    pub company_id: Option<Uuid>,
     pub provider_id: Option<Uuid>,
     pub provider_code: Option<GatewayProviderCode>,
     pub provider_transaction_id: Option<String>,
@@ -62,7 +61,7 @@ pub struct GatewayTransactionFilter {
 impl GatewayTransactionFilter {
     /// Check if any filter is set
     pub fn has_filters(&self) -> bool {
-        self.company_id.is_some() || self.provider_id.is_some() || self.provider_code.is_some() || self.provider_transaction_id.is_some() || self.direction.is_some() || self.party_type.is_some() || self.party_id.is_some() || self.currency.is_some() || self.status.is_some() || self.posting_state.is_some() || self.payment_entry_id.is_some() || self.fee_post_id.is_some() || self.reference_no.is_some()
+        self.provider_id.is_some() || self.provider_code.is_some() || self.provider_transaction_id.is_some() || self.direction.is_some() || self.party_type.is_some() || self.party_id.is_some() || self.currency.is_some() || self.status.is_some() || self.posting_state.is_some() || self.payment_entry_id.is_some() || self.fee_post_id.is_some() || self.reference_no.is_some()
     }
 }
 

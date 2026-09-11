@@ -24,6 +24,11 @@ user_owned:
   - "src/infrastructure/persistence/gateway_transaction_repository_custom.rs"
   - "src/presentation/http/gateway_webhook_handler.rs"
 
+  # Verified webhook ingest (ADR-0021/0022): the provider notification codecs and
+  # the ingest pipeline are hand-authored behavior, not schema-derived emission.
+  - "src/application/service/gateway_codecs.rs"
+  - "src/application/service/gateway_ingest_service.rs"
+
   # The seeder binary imports the crate by name; the generator mis-derives it as
   # `backbone_payment` for multi-segment module names, so this is hand-owned.
   - "src/bin/seeder.rs"
@@ -33,6 +38,13 @@ user_owned:
   - "tests/gateway_golden_cases.rs"
   - "tests/gateway_webhook_probes.rs"
   - "tests/gateway_seam.rs"
+  - "tests/gateway_codec_probes.rs"
+  - "tests/gateway_wiring.rs"
 
   # Hand-authored module documentation.
   - "docs/**"
+
+  # Hand-authored migration (the tenancy strip — the strip's ordering guard and the
+  # webhook-resolver re-projection are hand-authored logic, not schema-derived emission).
+  - "migrations/20260911120000_strip_tenancy.up.sql"
+  - "migrations/20260911120000_strip_tenancy.down.sql"

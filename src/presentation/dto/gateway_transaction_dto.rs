@@ -39,9 +39,6 @@ use crate::domain::entity::GatewayTransactionStatus;
 #[serde(rename_all = "camelCase")]
 pub struct CreateGatewayTransactionDto {
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
-    #[serde(alias = "company_id")]
-    pub company_id: Uuid,
-    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     #[serde(alias = "provider_id")]
     pub provider_id: Uuid,
     #[serde(alias = "provider_code")]
@@ -93,9 +90,6 @@ pub struct CreateGatewayTransactionDto {
 #[cfg_attr(feature = "validation", derive(Validate))]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateGatewayTransactionDto {
-    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
-    #[serde(alias = "company_id")]
-    pub company_id: Uuid,
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     #[serde(alias = "provider_id")]
     pub provider_id: Uuid,
@@ -149,9 +143,6 @@ pub struct UpdateGatewayTransactionDto {
 #[serde(rename_all = "camelCase")]
 pub struct PatchGatewayTransactionDto {
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
-    #[serde(skip_serializing_if = "Option::is_none", alias = "company_id")]
-    pub company_id: Option<Uuid>,
-    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     #[serde(skip_serializing_if = "Option::is_none", alias = "provider_id")]
     pub provider_id: Option<Uuid>,
     #[serde(skip_serializing_if = "Option::is_none", alias = "provider_code")]
@@ -196,7 +187,7 @@ pub struct PatchGatewayTransactionDto {
 impl PatchGatewayTransactionDto {
     /// Check if any field is set
     pub fn has_changes(&self) -> bool {
-        self.company_id.is_some() || self.provider_id.is_some() || self.provider_code.is_some() || self.provider_transaction_id.is_some() || self.direction.is_some() || self.party_type.is_some() || self.party_id.is_some() || self.gross_amount.is_some() || self.fee_amount.is_some() || self.net_amount.is_some() || self.currency.is_some() || self.status.is_some() || self.posting_state.is_some() || self.payment_entry_id.is_some() || self.fee_post_id.is_some() || self.settled_at.is_some() || self.reference_no.is_some() || self.raw_payload.is_some()
+        self.provider_id.is_some() || self.provider_code.is_some() || self.provider_transaction_id.is_some() || self.direction.is_some() || self.party_type.is_some() || self.party_id.is_some() || self.gross_amount.is_some() || self.fee_amount.is_some() || self.net_amount.is_some() || self.currency.is_some() || self.status.is_some() || self.posting_state.is_some() || self.payment_entry_id.is_some() || self.fee_post_id.is_some() || self.settled_at.is_some() || self.reference_no.is_some() || self.raw_payload.is_some()
     }
 }
 
@@ -214,8 +205,6 @@ impl PatchGatewayTransactionDto {
 pub struct GatewayTransactionResponseDto {
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     pub id: Uuid,
-    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
-    pub company_id: Uuid,
     #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     pub provider_id: Uuid,
     pub provider_code: GatewayProviderCode,
@@ -293,9 +282,9 @@ impl GatewayTransactionListResponseDto {
 #[serde(rename_all = "camelCase")]
 pub struct GatewayTransactionSummaryDto {
     pub id: Uuid,
-    pub company_id: Uuid,
     pub provider_id: Uuid,
     pub provider_code: GatewayProviderCode,
+    pub provider_transaction_id: String,
     pub created_at: Option<DateTime<Utc>>,
 }
 
@@ -307,7 +296,6 @@ impl From<GatewayTransaction> for GatewayTransactionResponseDto {
     fn from(entity: GatewayTransaction) -> Self {
         Self {
             id: entity.id,
-            company_id: entity.company_id,
             provider_id: entity.provider_id,
             provider_code: entity.provider_code,
             provider_transaction_id: entity.provider_transaction_id,
@@ -335,9 +323,9 @@ impl From<GatewayTransaction> for GatewayTransactionSummaryDto {
         let created_at = backbone_core::PersistentEntity::created_at(&entity);
         Self {
             id: entity.id,
-            company_id: entity.company_id,
             provider_id: entity.provider_id,
             provider_code: entity.provider_code,
+            provider_transaction_id: entity.provider_transaction_id,
             created_at,
         }
     }
@@ -347,7 +335,6 @@ impl From<CreateGatewayTransactionDto> for GatewayTransaction {
     fn from(dto: CreateGatewayTransactionDto) -> Self {
         Self {
             id: Uuid::new_v4(),
-            company_id: dto.company_id,
             provider_id: dto.provider_id,
             provider_code: dto.provider_code,
             provider_transaction_id: dto.provider_transaction_id,
@@ -374,7 +361,6 @@ impl From<&GatewayTransaction> for GatewayTransactionResponseDto {
     fn from(entity: &GatewayTransaction) -> Self {
         Self {
             id: entity.id.clone(),
-            company_id: entity.company_id.clone(),
             provider_id: entity.provider_id.clone(),
             provider_code: entity.provider_code.clone(),
             provider_transaction_id: entity.provider_transaction_id.clone(),
@@ -405,7 +391,6 @@ impl backbone_core::FromCreateDto<CreateGatewayTransactionDto> for GatewayTransa
 
 impl backbone_core::ApplyUpdateDto<UpdateGatewayTransactionDto> for GatewayTransaction {
     fn apply_update(mut self, dto: UpdateGatewayTransactionDto) -> backbone_core::ServiceResult<Self> {
-        self.company_id = dto.company_id;
         self.provider_id = dto.provider_id;
         self.provider_code = dto.provider_code;
         self.provider_transaction_id = dto.provider_transaction_id;

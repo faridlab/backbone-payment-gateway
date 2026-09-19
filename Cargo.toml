@@ -1,6 +1,6 @@
 [package]
 name = "backbone-payment-gateway"
-version = "0.4.11"
+version = "0.4.12"
 edition = "2021"
 description = "External payment-gateway boundary: provider abstraction, transaction record, fee line, settlement seam into payment"
 
@@ -111,7 +111,7 @@ rand = "0.8"
 # Dev-only edge for the settlement seam test (gateway → payment). Mirrors payment's
 # own billing/accounting dev-deps for settlement_seam.rs — ADR-002 allows dev-only
 # edges for proving the seam; the shipped library has zero normal Cargo edges.
-backbone-payment = { git = "https://github.com/faridlab/backbone-payment", tag = "v0.11.9" }
+backbone-payment = { git = "https://github.com/faridlab/backbone-payment", tag = "v0.11.10" }
 
 # Dev-only override: use the local monorepo checkout of backbone-payment so edits
 # to it are picked up immediately when building/testing THIS crate. The git tag

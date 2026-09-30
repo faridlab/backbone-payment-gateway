@@ -3,6 +3,7 @@ name = "backbone-payment-gateway"
 version = "0.4.26"
 edition = "2021"
 description = "External payment-gateway boundary: provider abstraction, transaction record, fee line, settlement seam into payment"
+license = "MIT OR Apache-2.0"
 
 [lib]
 path = "src/lib.rs"

@@ -329,6 +329,8 @@ dependencies = [
 [[package]]
 name = "backbone-payment"
 version = "0.11.29"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c18bf3a59e789c1c0a3f54f0770477c91ef0342a5bc67646a629a374e26a8414"
 dependencies = [
  "anyhow",
  "async-trait",

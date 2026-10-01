@@ -114,7 +114,7 @@ rand = "0.8"
 # Dev-only edge for the settlement seam test (gateway → payment). Mirrors payment's
 # own billing/accounting dev-deps for settlement_seam.rs — ADR-002 allows dev-only
 # edges for proving the seam; the shipped library has zero normal Cargo edges.
-backbone-payment = { path = "../backbone-payment" }
+backbone-payment = { version = "0.11.29" }
 
 # Dev-only override: use the local monorepo checkout of backbone-payment so edits
 # to it are picked up immediately when building/testing THIS crate. The git tag
@@ -125,4 +125,4 @@ backbone-payment = { path = "../backbone-payment" }
 # when backbone-payment-gateway is the package being built; consumers wire their
 # own override if they need local backbone-payment too.
 [patch."https://github.com/faridlab/backbone-payment"]
-backbone-payment = { path = "../backbone-payment" }
+backbone-payment = { version = "0.11.29" }

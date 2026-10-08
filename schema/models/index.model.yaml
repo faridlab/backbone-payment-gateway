@@ -10,7 +10,7 @@
 # Do not remove it.
 # =============================================================================
 
-module: payment_gateway
+module: payment-gateway
 version: 2
 schema: payment_gateway
 description: "payment_gateway domain module — external payment-gateway boundary"

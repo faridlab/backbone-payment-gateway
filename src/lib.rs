@@ -179,7 +179,7 @@ impl PaymentGatewayModule {
 /// Builder for PaymentGatewayModule
 pub struct PaymentGatewayModuleBuilder {
     db_pool: Option<PgPool>,
-    // <<< CUSTOM
+    // <<< CUSTOM BUILDER FIELDS
     fee_sink: Option<Arc<dyn GlPostSink>>,
     event_sink: Option<Arc<dyn GatewayEventSink>>,
     #[cfg(feature = "codecs")]
@@ -194,7 +194,7 @@ impl PaymentGatewayModuleBuilder {
     pub fn new() -> Self {
         Self {
             db_pool: None,
-            // <<< CUSTOM
+            // <<< CUSTOM BUILDER DEFAULTS
             fee_sink: None,
             event_sink: None,
             #[cfg(feature = "codecs")]

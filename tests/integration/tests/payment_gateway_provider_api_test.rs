@@ -4,12 +4,10 @@
 //!
 //! Tests the PaymentGatewayProvider CRUD API endpoints.
 
-use chrono::Utc;
 use serde_json::{json, Value};
 use uuid::Uuid;
 
 use super::crud_test_base::{CrudTestConfig, GenericCrudTest, TestDataGenerator};
-use crate::integration::framework::ApiTest;
 use crate::integration::helpers::CommonUtils;
 
 // ============================================================================
@@ -21,7 +19,6 @@ pub struct PaymentGatewayProviderTestData;
 
 impl TestDataGenerator for PaymentGatewayProviderTestData {
     fn generate_create_payload(&self, _utils: &CommonUtils) -> Value {
-        let now = Utc::now().to_rfc3339();
         json!({
             "id": Uuid::new_v4().to_string(),
             "code": format!("TEST_{}", Uuid::new_v4().to_string().split('-').next().unwrap()),
@@ -36,7 +33,6 @@ impl TestDataGenerator for PaymentGatewayProviderTestData {
     }
 
     fn generate_update_payload(&self, id: &str, _utils: &CommonUtils) -> Value {
-        let now = Utc::now().to_rfc3339();
         json!({
             "id": id,
             "code": format!("TEST_{}", Uuid::new_v4().to_string().split('-').next().unwrap()),

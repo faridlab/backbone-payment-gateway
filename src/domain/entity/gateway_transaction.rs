@@ -332,6 +332,7 @@ impl backbone_orm::EntityRepoMeta for GatewayTransaction {
         m.insert("party_type".to_string(), "gateway_party_type".to_string());
         m.insert("status".to_string(), "gateway_transaction_status".to_string());
         m.insert("posting_state".to_string(), "gateway_posting_state".to_string());
+        m.insert("settled_at".to_string(), "timestamptz".to_string());
         m
     }
     fn search_fields() -> &'static [&'static str] {

@@ -24,6 +24,14 @@ pub mod application;
 pub mod presentation;
 pub mod seeders;
 pub mod exports;
+// <<< CUSTOM MODULES
+#[cfg(feature = "codecs")]
+use application::service::{
+    CredentialReader, GatewayCodecRegistry, StatusRefetch, WebhookIngestService,
+};
+use application::service::{GatewayEventSink, GatewayWriteService, GlPostSink, LoggingGatewaySink};
+use presentation::http::{create_gateway_webhook_routes, WebhookState};
+// END CUSTOM
 
 // Re-exports for convenience - Domain entities
 pub use domain::entity::*;
@@ -38,15 +46,6 @@ pub use application::service::PaymentGatewayProviderService;
 use std::sync::Arc;
 use axum::Router;
 use sqlx::PgPool;
-
-// <<< CUSTOM
-#[cfg(feature = "codecs")]
-use application::service::{
-    CredentialReader, GatewayCodecRegistry, StatusRefetch, WebhookIngestService,
-};
-use application::service::{GatewayEventSink, GatewayWriteService, GlPostSink, LoggingGatewaySink};
-use presentation::http::{create_gateway_webhook_routes, WebhookState};
-// END CUSTOM
 
 /// PaymentGateway module configuration
 ///

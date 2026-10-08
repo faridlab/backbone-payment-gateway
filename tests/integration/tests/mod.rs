@@ -10,6 +10,5 @@ pub mod gateway_transaction_api_test;
 pub mod payment_gateway_provider_api_test;
 
 // Re-exports for convenience
-pub use crud_test_base::*;
 pub use gateway_transaction_api_test::*;
 pub use payment_gateway_provider_api_test::*;

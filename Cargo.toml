@@ -1,6 +1,6 @@
 [package]
 name = "backbone-payment-gateway"
-version = "0.4.28"
+version = "0.5.0"
 edition = "2021"
 description = "External payment-gateway boundary: provider abstraction, transaction record, fee line, settlement seam into payment"
 license = "MIT OR Apache-2.0"
@@ -20,13 +20,13 @@ path = "src/lib.rs"
 # or `rev = "<commit-sha>"`. Cargo dedupes the git fetch — the repo is only
 # cloned once even though four crates reference it.
 # -----------------------------------------------------------------------------
-backbone-core = { version = "2.7.35", features = ["postgres"] }
-backbone-orm = { version = "2.7.35" }
+backbone-core = { version = "3.0.0", features = ["postgres"] }
+backbone-orm = { version = "3.0.0" }
 # The GL-posting wire contract (envelope + sink port), shared across producers (phase 2).
 # backbone-gl-posting 0.1.0 shipped on backbone-framework v2.7.5; gateway_gl.rs re-exports it.
-backbone-gl-posting = { version = "2.7.35" }
-backbone-auth = { version = "2.7.35" }
-backbone-messaging = { version = "2.7.35" }
+backbone-gl-posting = { version = "3.0.0" }
+backbone-auth = { version = "3.0.0" }
+backbone-messaging = { version = "3.0.0" }
 
 # Core async runtime and serialization
 tokio = { version = "1.0", features = ["full"] }
@@ -114,4 +114,4 @@ rand = "0.8"
 # Dev-only edge for the settlement seam test (gateway → payment). Mirrors payment's
 # own billing/accounting dev-deps for settlement_seam.rs — ADR-002 allows dev-only
 # edges for proving the seam; the shipped library has zero normal Cargo edges.
-backbone-payment = { version = "0.11.29" }
+backbone-payment = { version = "0.12.0" }

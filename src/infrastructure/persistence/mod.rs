@@ -9,7 +9,6 @@ mod payment_gateway_provider_repository;
 
 // Custom persistence modules
 // <<< CUSTOM
-mod gateway_transaction_repository_custom;
 // END CUSTOM
 
 // Re-exports
@@ -25,7 +24,7 @@ pub use backbone_orm::repository::{
 
 // Re-export custom persistence types
 // <<< CUSTOM
-pub use gateway_transaction_repository_custom::{
-    compose_fee_post, compose_fee_reversal, FeeSourceRow, SettledHeaderRow,
-};
 // END CUSTOM
+
+// This directory's extension (hand-written; ADR-0031).
+include!("mod.ext.rs");

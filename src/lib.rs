@@ -24,8 +24,6 @@ pub mod application;
 pub mod presentation;
 pub mod seeders;
 pub mod exports;
-// <<< CUSTOM MODULES
-// END CUSTOM
 
 // The module's extension (hand-written; ADR-0031).
 #[path = "lib.ext.rs"]
@@ -68,8 +66,6 @@ pub struct PaymentGatewayModule {
     pub(crate) payment_gateway_provider_service: Arc<PaymentGatewayProviderService>,
     /// The module's extension state (`lib.ext.rs`); its fields read through `Deref`.
     pub(crate) ext: ModuleExt,
-    // <<< CUSTOM FIELDS
-    // END CUSTOM
 }
 
 impl std::ops::Deref for PaymentGatewayModule {
@@ -143,8 +139,6 @@ impl PaymentGatewayModule {
             .merge(create_payment_gateway_provider_read_routes(self.payment_gateway_provider_service.clone()))
     }
 
-    // <<< CUSTOM METHODS
-    // END CUSTOM
 }
 
 /// Builder for PaymentGatewayModule
@@ -152,8 +146,6 @@ pub struct PaymentGatewayModuleBuilder {
     db_pool: Option<PgPool>,
     /// The builder's extension state (`lib.ext.rs`); its fields read through `Deref`.
     ext: ModuleBuilderExt,
-    // <<< CUSTOM BUILDER FIELDS
-    // END CUSTOM
 }
 
 impl std::ops::Deref for PaymentGatewayModuleBuilder {
@@ -175,8 +167,6 @@ impl PaymentGatewayModuleBuilder {
         Self {
             db_pool: None,
             ext: Default::default(),
-            // <<< CUSTOM BUILDER DEFAULTS
-            // END CUSTOM
         }
     }
 
@@ -186,8 +176,6 @@ impl PaymentGatewayModuleBuilder {
         self
     }
 
-    // <<< CUSTOM - custom builder methods
-    // END CUSTOM
 
     /// Build the module with configured dependencies
     pub fn build(self) -> anyhow::Result<PaymentGatewayModule> {
@@ -202,8 +190,6 @@ impl PaymentGatewayModuleBuilder {
         let payment_gateway_provider_repository = Arc::new(PaymentGatewayProviderRepository::new(db_pool.clone()));
         let payment_gateway_provider_service = Arc::new(PaymentGatewayProviderService::with_repository(payment_gateway_provider_repository.clone()));
 
-        // <<< CUSTOM
-        // END CUSTOM
 
         // The extension builds its own state from what the generated build made.
         let ext = self.ext.build(&ModuleParts {
@@ -218,8 +204,6 @@ impl PaymentGatewayModuleBuilder {
             gateway_transaction_service,
             payment_gateway_provider_service,
             ext,
-            // <<< CUSTOM
-            // END CUSTOM
         })
     }
 }

@@ -18,9 +18,5 @@ pub fn gateway_transaction_validator() -> GatewayTransactionValidator {
         .rule(RequiredString::new("provider_transaction_id", |e: &GatewayTransaction| &e.provider_transaction_id))
         .rule(RequiredString::new("currency", |e: &GatewayTransaction| &e.currency))
         .rule(OptionalNotBlank::new("reference_no", |e: &GatewayTransaction| e.reference_no.as_deref()))
-    // <<< CUSTOM RULES
-    // END CUSTOM RULES
 }
 
-// <<< CUSTOM
-// END CUSTOM

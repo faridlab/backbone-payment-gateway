@@ -12,5 +12,3 @@ pub use gateway_transaction_event_handlers::GatewayTransactionEventHandler;
 pub use payment_gateway_provider_events::{PaymentGatewayProviderEvent, PaymentGatewayProviderEventPublisher, NoopPaymentGatewayProviderEventPublisher};
 pub use payment_gateway_provider_event_handlers::PaymentGatewayProviderEventHandler;
 
-// <<< CUSTOM
-// END CUSTOM

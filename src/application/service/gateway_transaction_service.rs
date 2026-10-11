@@ -32,5 +32,3 @@ pub type GatewayTransactionService = GenericCrudService<
     GatewayTransactionRepository,
 >;
 
-// <<< CUSTOM
-// END CUSTOM

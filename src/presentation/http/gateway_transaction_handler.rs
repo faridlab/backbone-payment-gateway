@@ -188,3 +188,4 @@ pub fn create_protected_gateway_transaction_routes<A: AuthMiddleware + Send + Sy
             }
         }))
 }
+

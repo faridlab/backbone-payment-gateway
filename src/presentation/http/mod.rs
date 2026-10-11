@@ -8,14 +8,10 @@
 pub mod gateway_transaction_handler;
 pub mod payment_gateway_provider_handler;
 
-// <<< CUSTOM
-// END CUSTOM
 
 // Re-exports
 pub use gateway_transaction_handler::{create_gateway_transaction_routes, create_gateway_transaction_read_routes, create_gateway_transaction_write_routes};
 pub use payment_gateway_provider_handler::{create_payment_gateway_provider_routes, create_payment_gateway_provider_read_routes, create_payment_gateway_provider_write_routes};
-// <<< CUSTOM
-// END CUSTOM
 
 // This directory's extension (hand-written; ADR-0031).
 include!("mod.ext.rs");

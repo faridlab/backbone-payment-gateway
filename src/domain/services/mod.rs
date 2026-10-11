@@ -8,5 +8,3 @@ pub mod payment_gateway_provider_domain_policy;
 pub use gateway_transaction_domain_policy::GatewayTransactionDomainPolicy;
 pub use payment_gateway_provider_domain_policy::PaymentGatewayProviderDomainPolicy;
 
-// <<< CUSTOM
-// END CUSTOM

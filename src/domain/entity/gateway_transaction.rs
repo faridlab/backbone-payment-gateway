@@ -274,8 +274,6 @@ impl GatewayTransaction {
         }
     }
 
-    // <<< CUSTOM METHODS START >>>
-    // <<< CUSTOM METHODS END >>>
 }
 
 impl super::Entity for GatewayTransaction {

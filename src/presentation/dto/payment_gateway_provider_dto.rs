@@ -293,7 +293,7 @@ impl backbone_core::ApplyUpdateDto<UpdatePaymentGatewayProviderDto> for PaymentG
 // Custom DTOs
 // =============================================================================
 
-// <<< CUSTOM DTOs
 // Add custom DTOs specific to PaymentGatewayProvider here.
 // This section will be preserved during regeneration.
 // >>> END CUSTOM DTOs
+

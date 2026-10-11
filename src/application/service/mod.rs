@@ -10,13 +10,9 @@ pub use error::{ServiceError, ServiceResult};
 pub mod gateway_transaction_service;
 pub mod payment_gateway_provider_service;
 
-// <<< CUSTOM
-// END CUSTOM
 
 pub use gateway_transaction_service::GatewayTransactionService;
 pub use payment_gateway_provider_service::PaymentGatewayProviderService;
-// <<< CUSTOM
-// END CUSTOM
 
 // This directory's extension (hand-written; ADR-0031).
 include!("mod.ext.rs");

@@ -11,8 +11,6 @@ use crate::domain::entity::GatewayTransaction;
 /// enum containing a `Crud(CrudEvent<GatewayTransaction>)` variant.
 pub type GatewayTransactionEvent = CrudEvent<GatewayTransaction>;
 
-// <<< CUSTOM
-// END CUSTOM
 
 use backbone_messaging::{CrudEventPublisher, NoOpCrudEventPublisher};
 use std::sync::Arc;

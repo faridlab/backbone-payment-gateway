@@ -11,5 +11,3 @@ pub mod payment_gateway_provider_validator;
 pub use gateway_transaction_validator::{GatewayTransactionValidator, gateway_transaction_validator};
 pub use payment_gateway_provider_validator::{PaymentGatewayProviderValidator, payment_gateway_provider_validator};
 
-// <<< CUSTOM
-// END CUSTOM

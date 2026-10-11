@@ -9,5 +9,3 @@ pub use backbone_core::{Specification, AndSpecification, OrSpecification, NotSpe
 pub mod gateway_transaction_specification;
 pub mod payment_gateway_provider_specification;
 
-// <<< CUSTOM
-// END CUSTOM

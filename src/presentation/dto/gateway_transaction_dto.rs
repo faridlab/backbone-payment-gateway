@@ -416,7 +416,7 @@ impl backbone_core::ApplyUpdateDto<UpdateGatewayTransactionDto> for GatewayTrans
 // Custom DTOs
 // =============================================================================
 
-// <<< CUSTOM DTOs
 // Add custom DTOs specific to GatewayTransaction here.
 // This section will be preserved during regeneration.
 // >>> END CUSTOM DTOs
+

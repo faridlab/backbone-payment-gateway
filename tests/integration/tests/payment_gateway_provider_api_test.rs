@@ -109,6 +109,4 @@ mod tests {
 // CUSTOM TESTS
 // ============================================================================
 
-// <<< CUSTOM TESTS START >>>
 // Add PaymentGatewayProvider specific tests here
-// <<< CUSTOM TESTS END >>>

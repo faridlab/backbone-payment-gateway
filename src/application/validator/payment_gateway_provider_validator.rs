@@ -17,9 +17,5 @@ pub fn payment_gateway_provider_validator() -> PaymentGatewayProviderValidator {
     EntityValidator::new()
         .rule(RequiredString::new("display_name", |e: &PaymentGatewayProvider| &e.display_name))
         .rule(OptionalNotBlank::new("credentials_ref", |e: &PaymentGatewayProvider| e.credentials_ref.as_deref()))
-    // <<< CUSTOM RULES
-    // END CUSTOM RULES
 }
 
-// <<< CUSTOM
-// END CUSTOM

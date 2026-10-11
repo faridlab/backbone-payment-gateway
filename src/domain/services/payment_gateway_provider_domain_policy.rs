@@ -18,5 +18,3 @@ use crate::domain::entity::PaymentGatewayProvider;
 /// service. `PermitAllPolicy` is the safe default until then.
 pub type PaymentGatewayProviderDomainPolicy = PermitAllPolicy<PaymentGatewayProvider>;
 
-// <<< CUSTOM
-// END CUSTOM

@@ -32,5 +32,3 @@ pub type PaymentGatewayProviderService = GenericCrudService<
     PaymentGatewayProviderRepository,
 >;
 
-// <<< CUSTOM
-// END CUSTOM

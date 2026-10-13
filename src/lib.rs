@@ -184,11 +184,11 @@ impl PaymentGatewayModuleBuilder {
 
         // GatewayTransaction service
         let gateway_transaction_repository = Arc::new(GatewayTransactionRepository::new(db_pool.clone()));
-        let gateway_transaction_service = Arc::new(GatewayTransactionService::with_repository(gateway_transaction_repository.clone()));
+        let gateway_transaction_service = Arc::new(GatewayTransactionService::with_repository(gateway_transaction_repository.clone()).with_guard(Arc::new(crate::application::service::GatewayTransactionRowRules)));
 
         // PaymentGatewayProvider service
         let payment_gateway_provider_repository = Arc::new(PaymentGatewayProviderRepository::new(db_pool.clone()));
-        let payment_gateway_provider_service = Arc::new(PaymentGatewayProviderService::with_repository(payment_gateway_provider_repository.clone()));
+        let payment_gateway_provider_service = Arc::new(PaymentGatewayProviderService::with_repository(payment_gateway_provider_repository.clone()).with_guard(Arc::new(crate::application::service::PaymentGatewayProviderRowRules)));
 
 
         // The extension builds its own state from what the generated build made.

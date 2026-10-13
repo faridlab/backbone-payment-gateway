@@ -32,3 +32,65 @@ pub type GatewayTransactionService = GenericCrudService<
     GatewayTransactionRepository,
 >;
 
+/// The rules the schema declares for GatewayTransaction, checked against the row a create or update
+/// would store. The generated build attaches it to [`GatewayTransactionService`]. A refusing rule's
+/// break answers 422; a rule in shadow is logged under `backbone::write_guard` and the
+/// write goes ahead.
+pub struct GatewayTransactionRowRules;
+
+#[async_trait::async_trait]
+impl backbone_core::write_guard::WriteGuard<GatewayTransaction> for GatewayTransactionRowRules {
+    async fn check(
+        &self,
+        ctx: &backbone_core::write_guard::WriteCtx<'_, GatewayTransaction>,
+    ) -> backbone_core::write_guard::GuardOutcome {
+        use backbone_core::row_rule as r;
+        use backbone_core::violation::Violation;
+        use backbone_core::write_guard::{GuardOutcome, WriteKind};
+        let (create, update) = (ctx.kind == WriteKind::Create, ctx.kind == WriteKind::Update);
+        let Some(after) = ctx.after.filter(|_| create || update) else {
+            return GuardOutcome::allow();
+        };
+        let Ok(row) = serde_json::to_value(after) else {
+            return GuardOutcome::allow();
+        };
+        let row = &row;
+        let old = ctx.before.and_then(|b| serde_json::to_value(b).ok());
+        let mut shadow = Vec::new();
+        let mut refuse = Vec::new();
+        // `provider_id_required` (@required on GatewayTransaction.provider_id)
+        if (create || (update && r::changed(old.as_ref(), row, &["provider_id"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "provider_id")), r::not(r::is_empty(r::trim(r::field(row, "provider_id")))))) {
+            refuse.push(Violation::new("provider_id", "required", "provider_id is required"));
+        }
+        // `provider_transaction_id_required` (@required on GatewayTransaction.provider_transaction_id)
+        if (create || (update && r::changed(old.as_ref(), row, &["provider_transaction_id"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "provider_transaction_id")), r::not(r::is_empty(r::trim(r::field(row, "provider_transaction_id")))))) {
+            refuse.push(Violation::new("provider_transaction_id", "required", "provider_transaction_id is required"));
+        }
+        // `provider_transaction_id_max_length` (@max(140) on GatewayTransaction.provider_transaction_id)
+        if (create || (update && r::changed(old.as_ref(), row, &["provider_transaction_id"]))) && !r::holds(&r::le(r::length(r::field(row, "provider_transaction_id")), r::Val::Num(140.0_f64))) {
+            shadow.push(Violation::new("provider_transaction_id", "max_length", "provider_transaction_id must be at most 140 characters").with_param("max", 140_i64));
+        }
+        // `gross_amount_non_negative` (@non_negative on GatewayTransaction.gross_amount)
+        if (create || (update && r::changed(old.as_ref(), row, &["gross_amount"]))) && !r::holds(&r::ge(r::field(row, "gross_amount"), r::Val::Num(0.0_f64))) {
+            shadow.push(Violation::new("gross_amount", "non_negative", "gross_amount must not be negative"));
+        }
+        // `fee_amount_non_negative` (@non_negative on GatewayTransaction.fee_amount)
+        if (create || (update && r::changed(old.as_ref(), row, &["fee_amount"]))) && !r::holds(&r::ge(r::field(row, "fee_amount"), r::Val::Num(0.0_f64))) {
+            shadow.push(Violation::new("fee_amount", "non_negative", "fee_amount must not be negative"));
+        }
+        // `net_amount_non_negative` (@non_negative on GatewayTransaction.net_amount)
+        if (create || (update && r::changed(old.as_ref(), row, &["net_amount"]))) && !r::holds(&r::ge(r::field(row, "net_amount"), r::Val::Num(0.0_f64))) {
+            shadow.push(Violation::new("net_amount", "non_negative", "net_amount must not be negative"));
+        }
+        // `currency_max_length` (@max(3) on GatewayTransaction.currency)
+        if (create || (update && r::changed(old.as_ref(), row, &["currency"]))) && !r::holds(&r::le(r::length(r::field(row, "currency")), r::Val::Num(3.0_f64))) {
+            shadow.push(Violation::new("currency", "max_length", "currency must be at most 3 characters").with_param("max", 3_i64));
+        }
+        // `reference_no_max_length` (@max(140) on GatewayTransaction.reference_no)
+        if (create || (update && r::changed(old.as_ref(), row, &["reference_no"]))) && !r::holds(&r::le(r::length(r::field(row, "reference_no")), r::Val::Num(140.0_f64))) {
+            shadow.push(Violation::new("reference_no", "max_length", "reference_no must be at most 140 characters").with_param("max", 140_i64));
+        }
+        GuardOutcome { refuse, shadow }
+    }
+}
+

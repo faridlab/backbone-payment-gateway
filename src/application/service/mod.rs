@@ -13,6 +13,8 @@ pub mod payment_gateway_provider_service;
 
 pub use gateway_transaction_service::GatewayTransactionService;
 pub use payment_gateway_provider_service::PaymentGatewayProviderService;
+pub use gateway_transaction_service::GatewayTransactionRowRules;
+pub use payment_gateway_provider_service::PaymentGatewayProviderRowRules;
 
 // This directory's extension (hand-written; ADR-0031).
 include!("mod.ext.rs");

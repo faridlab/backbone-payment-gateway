@@ -56,7 +56,7 @@ impl backbone_core::write_guard::WriteGuard<PaymentGatewayProvider> for PaymentG
         };
         let row = &row;
         let old = ctx.before.and_then(|b| serde_json::to_value(b).ok());
-        let mut shadow = Vec::new();
+        let shadow = Vec::new();
         let mut refuse = Vec::new();
         // `display_name_required` (@required on PaymentGatewayProvider.display_name)
         if (create || (update && r::changed(old.as_ref(), row, &["display_name"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "display_name")), r::not(r::is_empty(r::trim(r::field(row, "display_name")))))) {
@@ -64,11 +64,11 @@ impl backbone_core::write_guard::WriteGuard<PaymentGatewayProvider> for PaymentG
         }
         // `display_name_max_length` (@max(120) on PaymentGatewayProvider.display_name)
         if (create || (update && r::changed(old.as_ref(), row, &["display_name"]))) && !r::holds(&r::le(r::length(r::field(row, "display_name")), r::Val::Num(120.0_f64))) {
-            shadow.push(Violation::new("display_name", "max_length", "display_name must be at most 120 characters").with_param("max", 120_i64));
+            refuse.push(Violation::new("display_name", "max_length", "display_name must be at most 120 characters").with_param("max", 120_i64));
         }
         // `credentials_ref_max_length` (@max(255) on PaymentGatewayProvider.credentials_ref)
         if (create || (update && r::changed(old.as_ref(), row, &["credentials_ref"]))) && !r::holds(&r::le(r::length(r::field(row, "credentials_ref")), r::Val::Num(255.0_f64))) {
-            shadow.push(Violation::new("credentials_ref", "max_length", "credentials_ref must be at most 255 characters").with_param("max", 255_i64));
+            refuse.push(Violation::new("credentials_ref", "max_length", "credentials_ref must be at most 255 characters").with_param("max", 255_i64));
         }
         GuardOutcome { refuse, shadow }
     }

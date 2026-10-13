@@ -336,6 +336,9 @@ impl backbone_orm::EntityRepoMeta for GatewayTransaction {
     fn search_fields() -> &'static [&'static str] {
         &["provider_transaction_id", "currency"]
     }
+    fn relations() -> &'static [(&'static str, &'static str, &'static str)] {
+        &[("provider", "payment_gateway_providers", "providerId")]
+    }
 }
 
 /// Builder for GatewayTransaction entity

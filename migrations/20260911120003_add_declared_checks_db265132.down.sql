@@ -1,0 +1,19 @@
+-- Down: drop the declared rule constraints for payment-gateway module
+ALTER TABLE IF EXISTS payment_gateway.payment_gateway_providers DROP CONSTRAINT IF EXISTS ck_payment_gateway_providers_credentials_r_9ec19680__max_length;
+ALTER TABLE IF EXISTS payment_gateway.payment_gateway_providers DROP CONSTRAINT IF EXISTS ck_payment_gateway_providers_display_name__305a56fe__max_length;
+ALTER TABLE IF EXISTS payment_gateway.payment_gateway_providers DROP CONSTRAINT IF EXISTS ck_payment_gateway_providers_display_name_required__required;
+ALTER TABLE IF EXISTS payment_gateway.gateway_transactions DROP CONSTRAINT IF EXISTS ck_gateway_transactions_reference_no_max_length__max_length;
+ALTER TABLE IF EXISTS payment_gateway.gateway_transactions DROP CONSTRAINT IF EXISTS ck_gateway_transactions_currency_max_length__max_length;
+ALTER TABLE IF EXISTS payment_gateway.gateway_transactions DROP CONSTRAINT IF EXISTS ck_gateway_transactions_net_amount_non_negative__non_negative;
+ALTER TABLE IF EXISTS payment_gateway.gateway_transactions DROP CONSTRAINT IF EXISTS ck_gateway_transactions_fee_amount_non_negative__non_negative;
+ALTER TABLE IF EXISTS payment_gateway.gateway_transactions DROP CONSTRAINT IF EXISTS ck_gateway_transactions_gross_amount_non_negative__non_negative;
+ALTER TABLE IF EXISTS payment_gateway.gateway_transactions DROP CONSTRAINT IF EXISTS ck_gateway_transactions_provider_transacti_fce960c2__max_length;
+ALTER TABLE IF EXISTS payment_gateway.gateway_transactions DROP CONSTRAINT IF EXISTS ck_gateway_transactions_provider_transaction_f2eaae82__required;
+ALTER TABLE IF EXISTS payment_gateway.gateway_transactions DROP CONSTRAINT IF EXISTS ck_gateway_transactions_provider_id_required__required;
+DO $$
+BEGIN
+    IF to_regclass('payment_gateway.uq_gateway_transactions_provider_transaction_id__unique') IS NOT NULL AND to_regclass('payment_gateway.idx_gateway_transactions_provider_code_provider_transaction_id') IS NULL THEN
+        ALTER INDEX payment_gateway.uq_gateway_transactions_provider_transaction_id__unique RENAME TO idx_gateway_transactions_provider_code_provider_transaction_id;
+    END IF;
+END $$;
+

@@ -289,6 +289,12 @@ impl super::Entity for GatewayTransaction {
 }
 
 impl backbone_core::PersistentEntity for GatewayTransaction {
+    fn references() -> &'static [backbone_core::Reference] {
+        const REFERENCES: &[backbone_core::Reference] = &[
+            backbone_core::Reference::new("provider_id", "payment_gateway.payment_gateway_providers", "id"),
+        ];
+        REFERENCES
+    }
     fn entity_id(&self) -> String {
         self.id.to_string()
     }

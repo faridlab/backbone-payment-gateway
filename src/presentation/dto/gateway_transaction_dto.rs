@@ -42,6 +42,7 @@ pub struct CreateGatewayTransactionDto {
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     #[serde(alias = "provider_transaction_id")]
     pub provider_transaction_id: String,
+    #[serde(default = "default_create_gateway_transaction_direction")]
     pub direction: GatewayDirection,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "party_type")]
     pub party_type: Option<GatewayPartyType>,
@@ -49,14 +50,16 @@ pub struct CreateGatewayTransactionDto {
     pub party_id: Option<Uuid>,
     #[serde(alias = "gross_amount")]
     pub gross_amount: Decimal,
-    #[serde(alias = "fee_amount")]
+    #[serde(default, alias = "fee_amount")]
     pub fee_amount: Decimal,
     #[serde(alias = "net_amount")]
     pub net_amount: Decimal,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
+    #[serde(default = "default_create_gateway_transaction_currency")]
     pub currency: String,
+    #[serde(default = "default_create_gateway_transaction_status")]
     pub status: GatewayTransactionStatus,
-    #[serde(alias = "posting_state")]
+    #[serde(default = "default_create_gateway_transaction_posting_state", alias = "posting_state")]
     pub posting_state: GatewayPostingState,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "payment_entry_id")]
     pub payment_entry_id: Option<Uuid>,
@@ -68,6 +71,22 @@ pub struct CreateGatewayTransactionDto {
     pub reference_no: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "raw_payload")]
     pub raw_payload: Option<serde_json::Value>,
+}
+
+fn default_create_gateway_transaction_direction() -> GatewayDirection {
+    GatewayDirection::Receive
+}
+
+fn default_create_gateway_transaction_currency() -> String {
+    "IDR".to_string()
+}
+
+fn default_create_gateway_transaction_status() -> GatewayTransactionStatus {
+    GatewayTransactionStatus::Pending
+}
+
+fn default_create_gateway_transaction_posting_state() -> GatewayPostingState {
+    GatewayPostingState::Pending
 }
 
 // =============================================================================
@@ -140,10 +159,10 @@ pub struct PatchGatewayTransactionDto {
     pub provider_transaction_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub direction: Option<GatewayDirection>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "party_type")]
-    pub party_type: Option<GatewayPartyType>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "party_id")]
-    pub party_id: Option<Uuid>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "party_type")]
+    pub party_type: Option<Option<GatewayPartyType>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "party_id")]
+    pub party_id: Option<Option<Uuid>>,
     #[serde(skip_serializing_if = "Option::is_none", alias = "gross_amount")]
     pub gross_amount: Option<Decimal>,
     #[serde(skip_serializing_if = "Option::is_none", alias = "fee_amount")]
@@ -157,16 +176,16 @@ pub struct PatchGatewayTransactionDto {
     pub status: Option<GatewayTransactionStatus>,
     #[serde(skip_serializing_if = "Option::is_none", alias = "posting_state")]
     pub posting_state: Option<GatewayPostingState>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "payment_entry_id")]
-    pub payment_entry_id: Option<Uuid>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "fee_post_id")]
-    pub fee_post_id: Option<Uuid>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "settled_at")]
-    pub settled_at: Option<DateTime<Utc>>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "reference_no")]
-    pub reference_no: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "raw_payload")]
-    pub raw_payload: Option<serde_json::Value>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "payment_entry_id")]
+    pub payment_entry_id: Option<Option<Uuid>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "fee_post_id")]
+    pub fee_post_id: Option<Option<Uuid>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "settled_at")]
+    pub settled_at: Option<Option<DateTime<Utc>>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "reference_no")]
+    pub reference_no: Option<Option<String>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "raw_payload")]
+    pub raw_payload: Option<Option<serde_json::Value>>,
 }
 
 impl PatchGatewayTransactionDto {
@@ -396,12 +415,4 @@ impl backbone_core::ApplyUpdateDto<UpdateGatewayTransactionDto> for GatewayTrans
         Ok(self)
     }
 }
-
-// =============================================================================
-// Custom DTOs
-// =============================================================================
-
-// Add custom DTOs specific to GatewayTransaction here.
-// This section will be preserved during regeneration.
-// >>> END CUSTOM DTOs
 

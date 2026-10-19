@@ -42,7 +42,12 @@ pub struct CreatePaymentGatewayProviderDto {
     pub settlement_account_id: Option<Uuid>,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "clearing_account_id")]
     pub clearing_account_id: Option<Uuid>,
+    #[serde(default = "default_create_payment_gateway_provider_status")]
     pub status: ProviderStatus,
+}
+
+fn default_create_payment_gateway_provider_status() -> ProviderStatus {
+    ProviderStatus::Active
 }
 
 // =============================================================================
@@ -89,14 +94,14 @@ pub struct PatchPaymentGatewayProviderDto {
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     #[serde(skip_serializing_if = "Option::is_none", alias = "display_name")]
     pub display_name: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "credentials_ref")]
-    pub credentials_ref: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "fee_account_id")]
-    pub fee_account_id: Option<Uuid>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "settlement_account_id")]
-    pub settlement_account_id: Option<Uuid>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "clearing_account_id")]
-    pub clearing_account_id: Option<Uuid>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "credentials_ref")]
+    pub credentials_ref: Option<Option<String>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "fee_account_id")]
+    pub fee_account_id: Option<Option<Uuid>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "settlement_account_id")]
+    pub settlement_account_id: Option<Option<Uuid>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "clearing_account_id")]
+    pub clearing_account_id: Option<Option<Uuid>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<ProviderStatus>,
 }
@@ -276,12 +281,4 @@ impl backbone_core::ApplyUpdateDto<UpdatePaymentGatewayProviderDto> for PaymentG
         Ok(self)
     }
 }
-
-// =============================================================================
-// Custom DTOs
-// =============================================================================
-
-// Add custom DTOs specific to PaymentGatewayProvider here.
-// This section will be preserved during regeneration.
-// >>> END CUSTOM DTOs
 

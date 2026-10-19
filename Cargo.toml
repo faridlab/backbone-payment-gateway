@@ -1,6 +1,6 @@
 [package]
 name = "backbone-payment-gateway"
-version = "0.11.0"
+version = "0.11.1"
 edition = "2021"
 description = "External payment-gateway boundary: provider abstraction, transaction record, fee line, settlement seam into payment"
 license = "MIT OR Apache-2.0"
@@ -20,8 +20,8 @@ path = "src/lib.rs"
 # or `rev = "<commit-sha>"`. Cargo dedupes the git fetch — the repo is only
 # cloned once even though four crates reference it.
 # -----------------------------------------------------------------------------
-backbone-core = { version = "3.7.0", features = ["postgres"] }
-backbone-orm = { version = "3.0.0" }
+backbone-core = { version = " 3.18.0", features = ["postgres"] }
+backbone-orm = { version = " 3.18.0" }
 # The GL-posting wire contract (envelope + sink port), shared across producers (phase 2).
 # backbone-gl-posting 0.1.0 shipped on backbone-framework v2.7.5; gateway_gl.rs re-exports it.
 backbone-gl-posting = { version = "3.0.0" }
